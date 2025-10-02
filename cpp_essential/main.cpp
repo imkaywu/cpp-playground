@@ -11,13 +11,15 @@ void test_init();
 void test_type_cast();
 void test_return_semantics();
 void test_function_pointer();
+void test_lambda_function();
 
 int main() {
   // test_cin();
   // test_init();
   // test_type_cast();
   // test_return_semantics();
-  test_function_pointer();
+  // test_function_pointer();
+  test_lambda_function();
   return 0;
 }
 
@@ -195,4 +197,67 @@ void test_function_pointer() {
   cout << "=== function ===\n";
   function<int(int, int)> f = [](int a, int b) { return a + b; };
   cout << "2+3=" << f(2, 3) << endl;
+}
+
+// -----------
+struct Counter {
+  int count = 0;
+
+  void run() {
+    auto inc = [this]() { count++; };
+    inc();
+    cout << count << endl;
+  }
+};
+
+void test_lambda_function() {
+  cout << "=== basic ===\n";
+  auto say_hello = []() { cout << "Hello from a lambda!" << endl; };
+  say_hello();
+  auto add = [](int a, int b) -> int { return a + b; };
+  auto sub = [](int a, int b) { return a - b; };
+  cout << "3+4=" << add(3, 4) << endl << "3-4=" << sub(3, 4) << endl;
+
+  cout << "=== capture list ===\n";
+  int x = 10, y = 20;
+  auto f1 = [x, y]() { return x + y; };
+  auto f2 = [&x, &y]() { return ++x + ++y; };
+  cout << f1() << ", " << f2() << endl;
+
+  cout << "=== default capture ===\n";
+  x = 1;
+  y = 2;
+  auto by_value = [=]() { return x + y; };
+  auto by_ref = [&]() { return ++x + ++y; };
+  auto mixed = [=, &y]() { return x + (++y); };
+  cout << "(by value)x+y=" << by_value() << endl
+       << "(by ref)++x + ++y=" << by_ref() << endl
+       << "x + ++y=" << mixed() << endl;
+
+  cout << "=== mutable lambda ===\n";
+  int n = 5;
+  auto f = [n]() mutable {
+    n += 10; // lambdas that capture by value can NOT modify the copies unless
+             // using mutable
+    return n;
+  };
+  cout << "n=" << n << endl << "n+10=" << f() << endl;
+
+  cout << "=== lambda as function arguments ===\n";
+  vector<int> v = {1, 2, 3, 4, 5};
+  sort(v.begin(), v.end(), [](int a, int b) { return a > b; });
+  for (int x : v)
+    cout << x << " ";
+
+  cout << "\n=== lambda in std::function ===\n";
+  function<int(int, int)> func = [](int a, int b) { return a + b; };
+  cout << "func(10, 20)=" << func(10, 20) << endl;
+
+  cout << "=== generic lambdas (cpp14) ===\n";
+  auto add2 = [](auto a, auto b) { return a + b; };
+  cout << "1+2=" << add2(1, 2) << endl << "1.5+2.5=" << add2(1.5, 2.5) << endl;
+
+  cout << "=== capture this pointer ===\n";
+  Counter c;
+  c.run();
 }
