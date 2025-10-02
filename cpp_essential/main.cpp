@@ -12,6 +12,7 @@ void test_type_cast();
 void test_return_semantics();
 void test_function_pointer();
 void test_lambda_function();
+void test_auto_return_type_deduct();
 
 int main() {
   // test_cin();
@@ -19,7 +20,8 @@ int main() {
   // test_type_cast();
   // test_return_semantics();
   // test_function_pointer();
-  test_lambda_function();
+  // test_lambda_function();
+  test_auto_return_type_deduct();
   return 0;
 }
 
@@ -260,4 +262,40 @@ void test_lambda_function() {
   cout << "=== capture this pointer ===\n";
   Counter c;
   c.run();
+}
+
+// -----------
+auto mul(int a, double b) { return a * b; }
+auto div2(int a, int b) -> double { return (double)a / b; }
+auto foo(bool flag) {
+  if (flag)
+    return (double)1;
+  else
+    return 1.5;
+}
+
+int x = 10;
+auto f() { return x; };             // return int
+auto g() { return (x); };           // return int, drop reference
+decltype(auto) h() { return (x); }; // return int&
+
+template <typename T, typename U> auto add2(T a, U b) { return a + b; }
+
+void test_auto_return_type_deduct() {
+  cout << "=== single return ===\n";
+  cout << "1*1.5=" << mul(1, 1.5) << endl << "3/2=" << div2(3, 2) << endl;
+
+  cout << "=== multiple returns ===\n";
+  cout << foo(true) << " " << foo(false) << endl;
+
+  cout << "=== reference preservation ===\n";
+  cout << "f()=" << f() << endl;
+  cout << "g()=" << g() << endl;
+  h() = 20;
+  cout << "h()=" << h() << endl;
+
+  cout << "=== template ===\n";
+  cout << "1+2=" << add2(1, 2) << endl
+       << "1.5+2.5=" << add2(1.5, 2.5) << endl
+       << "1+1.5=" << add2(1, 1.5) << endl;
 }
