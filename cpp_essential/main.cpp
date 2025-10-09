@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <concepts> // for C++20 concepts like std::integral
 
 using namespace std;
 
@@ -22,6 +23,9 @@ void test_const_correctness();
 void test_RAII();
 void test_smart_pointer();
 void test_oop();
+void test_multi_inheritance();
+void test_base_class_init();
+void test_function_template();
 
 int main() {
   // test_cin();
@@ -37,10 +41,15 @@ int main() {
   // test_const_correctness();
   // test_RAII();
   // test_smart_pointer();
-  test_oop();
+  // test_oop();
+  // test_multi_inheritance();
+  // test_base_class_init();
+  test_function_template();
   return 0;
 }
 
+// -----------
+// cin
 // -----------
 void test_cin() {
   cout << "=== cin ===\n";
@@ -55,6 +64,8 @@ void test_cin() {
   cout << "c: " << c << endl;
 }
 
+// -----------
+// initialization
 // -----------
 void test_init() {
   cout << "=== initialization ===\n";
@@ -84,6 +95,8 @@ void test_init() {
   }
 }
 
+// -----------
+// type cast
 // -----------
 class Base {
 public:
@@ -138,6 +151,8 @@ void test_type_cast() {
 }
 
 // -----------
+// return semantics
+// -----------
 struct Tracker {
   string name;
 
@@ -185,6 +200,8 @@ void test_return_semantics() {
 }
 
 // -----------
+// function pointer
+// -----------
 int add(int a, int b) { return a + b; }
 int sub(int a, int b) { return a - b; }
 int mul(int a, int b) { return a * b; }
@@ -217,6 +234,8 @@ void test_function_pointer() {
   cout << "2+3=" << f(2, 3) << endl;
 }
 
+// -----------
+// lambda function
 // -----------
 struct Counter {
   int count = 0;
@@ -281,6 +300,8 @@ void test_lambda_function() {
 }
 
 // -----------
+// auto return type deduction
+// -----------
 auto mul(int a, double b) { return a * b; }
 auto div2(int a, int b) -> double { return (double)a / b; }
 auto foo(bool flag) {
@@ -316,6 +337,8 @@ void test_auto_return_type_deduct() {
        << "1+1.5=" << add2(1, 1.5) << endl;
 }
 
+// -----------
+// basic pointer
 // -----------
 void allocate(int* p) {
   p = new int(10);
@@ -355,6 +378,8 @@ void test_basic_pointer() {
 }
 
 // -----------
+// NULL v nullptr
+// -----------
 void foo(int n) {
   cout << "int overload\n";
 }
@@ -373,6 +398,8 @@ void test_nullptr_NULL_macro() {
 }
 
 // -----------
+// new/delete
+// -----------
 void test_new_delete() {
   cout << "=== arrays ===\n";
   int *arr = new int[5]{1, 2, 3, 4, 5};
@@ -388,6 +415,8 @@ void test_new_delete() {
   delete tracker;
 }
 
+// -----------
+// const correctness
 // -----------
 // "right-to-left" rule
 void test_const_correctness() {
@@ -415,6 +444,8 @@ void test_const_correctness() {
   // p3 = &b; error: cannot modify pointer
 }
 
+// -----------
+// RAII
 // -----------
 class FileRAII {
   FILE *file;
@@ -456,6 +487,8 @@ void test_RAII() {
   }
 }
 
+// -----------
+// Smart pointer
 // -----------
 struct Node {
   string name;
@@ -508,6 +541,8 @@ void test_smart_pointer() {
   cout << "After breaking internal links, wa.use_count=" << wa.use_count() << ", wb.use_count=" << wb.use_count() << endl;
 }
 
+// -----------
+// OOP
 // -----------
 // Base class with polymorphism
 class Shape {
@@ -637,3 +672,121 @@ void test_oop() {
   cout << "=== Destruct ===\n";
 }
 
+// -----------
+// Multiple inheritance
+// Virtual inheritance (diamond problem)
+// -----------
+//      A
+//     / \
+//    B   C
+//     \ /
+//      D
+class A {
+public:
+  A() { cout << "A constructed\n"; }
+  ~A() { cout << "A destroyed\n"; }
+  int value = 1;
+};
+class B : virtual public A {
+public:
+  B() { cout << "B constructed\n"; }
+  ~B() { cout << "B destroyed\n"; }
+};
+class C : virtual public A {
+public:
+  C() { cout << "C constructed\n"; }
+  ~C() { cout << "C destroyed\n"; }
+};
+class D : public B, public C {};
+
+void test_multi_inheritance() {
+  D d;
+  d.value = 42; // unambiguous
+  cout << d.value << endl;
+}
+
+// -----------
+// Base class initialization
+// -----------
+class Base2 {
+public:
+  Base2(int x) { cout << "Base(" << x << ")\n"; }
+};
+class Derived2 : public Base2 {
+  int data;
+public:
+  Derived2(int x, int y) : Base2(x), data(y) {
+    cout << "Derived(" << x << ", " << y << ")\n";    
+  }
+};
+
+void test_base_class_init() {
+  Derived2 d(1, 2);
+}
+
+// -----------
+// dynamic dispatch (vtable)
+// -----------
+// dynamic dispatch: deciding function call at runtime
+// vtable: Table of function pointers for virtual functions
+// vptr: Hidden pointer in objects pointing to vtable
+
+
+// -----------
+// dynamic cast for RTTI
+// -----------
+// RTTI: Run-Time Type Info. Metadata for runtime type checking.
+//       only available when base class has virtual function(s)
+//       vptr → vtable → RTTI descriptor
+
+// -----------
+// function template
+// -----------
+template <typename T>
+T addTwo(T a, T b) {
+  cout << "[Template] addTwo(T,T) called\n";
+  return a + b;
+}
+
+int addTwo(int a, int b) {
+  cout << "[Overload] addTwo(T,T) called\n";
+  return a + b;
+}
+
+template <typename T, typename U>
+auto multiply(T a, U b) {
+  cout << "[Template] multiply(T,U) called\n";
+  return a * b;
+}
+
+// Template Specialization: specialize (customize) the template's behavior for
+// particular template arguments.
+template<>
+string addTwo<string>(string a, string b) {
+  cout << "[Specialization] addTwo<string>(string,string) called\n";
+  return a + " & " + b;
+}
+
+template <typename T>
+requires integral<T>
+T square(T x) {
+  cout << "[Constained] square(T) where T is integral\n";
+  return x * x;
+}
+
+void test_function_template() {
+  cout << "=== Function Template Basics ===\n";
+  cout << addTwo(3, 4) << endl
+       << addTwo(2.5, 4.1) << endl
+       << addTwo(string("Hi"), string("Bob")) << endl;
+  
+  cout << "=== Multiple Type Parameters ===\n";
+  cout << multiply(3, 4.5) << endl;
+
+  cout << "=== constrained template ===\n";
+  cout << square(5) << endl;
+  // cout << square(5.5) << endl; // compiler error: not integral
+
+  cout << "=== Explicit Template Arguments ===\n";
+  cout << addTwo<int>(10.5, 20.9) << endl;
+}
