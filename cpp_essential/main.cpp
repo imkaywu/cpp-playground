@@ -26,6 +26,7 @@ void test_oop();
 void test_multi_inheritance();
 void test_base_class_init();
 void test_function_template();
+void test_class_template();
 
 int main() {
   // test_cin();
@@ -44,7 +45,8 @@ int main() {
   // test_oop();
   // test_multi_inheritance();
   // test_base_class_init();
-  test_function_template();
+  // test_function_template();
+  test_class_template();
   return 0;
 }
 
@@ -789,4 +791,56 @@ void test_function_template() {
 
   cout << "=== Explicit Template Arguments ===\n";
   cout << addTwo<int>(10.5, 20.9) << endl;
+}
+
+// -----------
+// class template
+// -----------
+template <typename T>
+class Box {
+protected:
+  T value;
+public:
+  Box(T v) : value(v) {};
+  T get() const { return value; }
+  void set(T v) { value = v; }
+};
+
+template <typename T>
+class SafeBox : public Box<T> {
+  bool locked;
+public:
+  SafeBox(T v) : Box<T>(v), locked(true) {}
+
+  void lock() { locked = true; }
+  void unlock() { locked = false; }
+
+  T get_value() const {
+    if (locked) {
+      throw runtime_error("Box is locked");
+    }
+    return this->value;
+  }
+};
+
+template<>
+class SafeBox<string> : public Box<string> {
+public:
+  SafeBox(string v) : Box<string>("Encrypted: " + v) {}
+  string get_value() const { return this->value; }
+};
+
+void test_class_template() {
+  SafeBox<int> safe_box_int(42);
+  try {
+    cout << safe_box_int.get_value() << endl;
+  } catch (const exception &e) {
+    cout << e.what() << endl;
+  }
+
+  safe_box_int.unlock();
+  cout << safe_box_int.get_value() << endl;
+
+  SafeBox<string> safe_box_str("secret");
+  cout << safe_box_str.get_value() << endl;
 }
