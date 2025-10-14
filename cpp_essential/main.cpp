@@ -27,6 +27,8 @@ void test_multi_inheritance();
 void test_base_class_init();
 void test_function_template();
 void test_class_template();
+void test_template_specialization();
+void test_variadic_templates();
 
 int main() {
   // test_cin();
@@ -46,7 +48,10 @@ int main() {
   // test_multi_inheritance();
   // test_base_class_init();
   // test_function_template();
-  test_class_template();
+  // test_class_template();
+  // test_template_specialization();
+  test_variadic_templates();
+
   return 0;
 }
 
@@ -843,4 +848,76 @@ void test_class_template() {
 
   SafeBox<string> safe_box_str("secret");
   cout << safe_box_str.get_value() << endl;
+}
+
+// -----------
+// Template Specialization
+// -----------
+template <typename T1, typename T2>
+class Pair {
+public:
+  void print() { cout << "General pair\n"; }
+};
+
+template <typename T>
+class Pair<T, T> {
+public:
+  void print() { cout << "Partial specialization: both types same\n"; }
+};
+
+void test_template_specialization() {
+  Pair<int, double> p1;
+  Pair<int, int> p2;
+  p1.print();
+  p2.print();
+}
+
+// -----------
+// Variadic templates
+// -----------
+void print() { cout << "No more inputs\n"; }
+
+// ...: defines Args as a pack (like “zero or more types”).
+template <typename T, typename... Args>
+// Args... expands into multiple parameters
+void print(T first, Args... args) {
+  cout << first << " ";
+  // args...: expands into multiple arguments
+  print(args...);
+}
+
+template<typename... Args>
+void print_fold(Args... args) {
+  // comma operator: chain all those operations together inside a fold
+  ((cout << args << " "), ...);
+  cout << "\n";
+}
+
+template <typename... Args>
+void count_args(Args... args) {
+  cout << "Number of args: " << sizeof...(args) << endl;
+}
+
+template <typename T, typename... Args>
+unique_ptr<T> make_unique_custom(Args... args) {
+  return unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+
+class Person {
+public:
+  Person(string n, int a) { cout << "Constructing " << n << ", " << a << endl; }
+};
+
+void test_variadic_templates() {
+  cout << "=== Expand a parameter pack ===\n";
+  print(1, 2.5, "hello");
+
+  cout << "=== Fold expression ===\n";
+  print_fold(1, 2.5, "hello");
+
+  cout << "=== Count args ===\n";
+  count_args(1, 2.5, "hello");
+
+  cout << "=== Perfect forwarding ===\n";
+  make_unique_custom<Person>("Alice", 10);
 }
