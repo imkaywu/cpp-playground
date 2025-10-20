@@ -29,6 +29,7 @@ void test_function_template();
 void test_class_template();
 void test_template_specialization();
 void test_variadic_templates();
+void test_nttp();
 
 int main() {
   // test_cin();
@@ -50,7 +51,8 @@ int main() {
   // test_function_template();
   // test_class_template();
   // test_template_specialization();
-  test_variadic_templates();
+  // test_variadic_templates();
+  test_nttp();
 
   return 0;
 }
@@ -920,4 +922,58 @@ void test_variadic_templates() {
 
   cout << "=== Perfect forwarding ===\n";
   make_unique_custom<Person>("Alice", 10);
+}
+
+// -----------
+// Non-Type Template Parameter
+// -----------
+template <size_t N>
+void repeat_hello() {
+  for (size_t i = 0; i < N; ++i) {
+    cout << "Hello!" << endl;
+  }
+}
+
+template <typename T, size_t N>
+// arr: a reference to a const array of size N
+void print_array(const T (&arr)[N]) {
+  cout << "Array size = " << N << " => ";
+  for (size_t i = 0; i < N; ++i) {
+    cout << arr[i] << " ";
+  }
+  cout << endl;
+}
+
+template <typename T, size_t N>
+class FixedArray {
+  T arr[N];
+
+public:
+  void fill(const T& val) {
+    for (size_t i = 0; i < N; ++i) {
+      arr[i] = val;
+    }
+  }
+
+  void show() const { 
+    cout << "Array size = " << N << " => ";
+    for (size_t i = 0; i < N; ++i) {
+      cout << arr[i] << " ";
+    }
+    cout << endl;
+  }
+};
+
+void test_nttp() {
+  cout << "=== Basic ===\n";
+  repeat_hello<4>();
+
+  cout << "=== Array reference ===\n";
+  int arr[4] = {1, 2, 3, 4};
+  print_array<int, 4>(arr);
+
+  cout << "=== Class template with non-type parameter ===\n";
+  FixedArray<int, 4> fixed_arr;
+  fixed_arr.fill(10);
+  fixed_arr.show();
 }
