@@ -30,6 +30,7 @@ void test_class_template();
 void test_template_specialization();
 void test_variadic_templates();
 void test_nttp();
+void test_crtp();
 
 int main() {
   // test_cin();
@@ -52,7 +53,8 @@ int main() {
   // test_class_template();
   // test_template_specialization();
   // test_variadic_templates();
-  test_nttp();
+  // test_nttp();
+  test_crtp();
 
   return 0;
 }
@@ -976,4 +978,96 @@ void test_nttp() {
   FixedArray<int, 4> fixed_arr;
   fixed_arr.fill(10);
   fixed_arr.show();
+}
+
+// -----------
+// CRTP (Curiously Recurring Template Pattern)
+// -----------
+// Logging mixin
+template <typename Derived>
+class Logger {
+public:
+  Logger() {
+    cout << "Creating " << static_cast<Derived*>(this)->to_string() << endl;
+  }
+
+  ~Logger() {
+    cout << "Destroying " << static_cast<Derived*>(this)->to_string() << endl;
+  }
+};
+
+// Counter mixin
+template <typename Derived>
+class CounterCRTP {
+private:
+  static int count;
+
+public:
+  CounterCRTP() {  ++count; }
+  CounterCRTP(const CounterCRTP&) { ++count; }
+  CounterCRTP(CounterCRTP&&) noexcept { ++count; }
+  CounterCRTP& operator=(const CounterCRTP& other) { ++count; }
+  ~CounterCRTP() { --count; }
+  static int get_count() { return count; }
+};
+
+template <typename Derived>
+int CounterCRTP<Derived>::count = 0;
+
+// Addable mixin
+template <typename Derived>
+class Addable {
+public:
+  Derived operator+(const Derived& other) const {
+    Derived result = static_cast<const Derived&>(*this);
+    result += other;
+    return result;
+  }
+};
+
+// Base CRTP class combining everything
+template <typename Derived>
+class Entity : public Logger<Derived>, public CounterCRTP<Derived>, public Addable<Derived> {
+public:
+  void print() const {
+    cout << static_cast<const Derived*>(this)->to_string() << endl;
+  }
+};
+
+// Derived class
+class Money : public Entity<Money> {
+public:
+  int value;
+
+  Money(int v = 0) : value(v) {}
+
+  // Required by Addable mixin
+  Money operator+(const Money& other) {
+    Money res = static_cast<const Money&>(*this);
+    res.value += other.value;
+    return res;
+  }
+
+  // Required by Logger mixin
+  string to_string() const {
+    return "Money (" + std::to_string(value) + ")";
+  }
+};
+
+void test_crtp() {
+  Money m1(30);
+  Money m2(50);
+
+  Money m3 = m1 + m2; // call operator+ to create a temp Money instance, then
+                      // copied to m3
+  m3.print();
+
+  cout << "Money instances: " << Money::get_count() << endl;
+
+  {
+    Money m4(100);
+    cout << "Money instances (inside block): " << Money::get_count() << endl;
+  }
+
+  cout << "Money instances (outside block): " << Money::get_count() << endl;
 }
