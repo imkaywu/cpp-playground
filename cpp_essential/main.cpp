@@ -2,6 +2,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <concepts> // for C++20 concepts like std::integral
 
@@ -32,6 +33,8 @@ void test_variadic_templates();
 void test_nttp();
 void test_crtp();
 void test_concept();
+void test_sfinae();
+void test_decltype_auto();
 
 int main() {
   // test_cin();
@@ -56,7 +59,9 @@ int main() {
   // test_variadic_templates();
   // test_nttp();
   // test_crtp();
-  test_concept();
+  // test_concept();
+  // test_sfinae();
+  test_decltype_auto();
 
   return 0;
 }
@@ -1150,7 +1155,112 @@ void test_concept() {
 
   cout << "=== Use concept in classes ===\n";
   Range<int> r(10, 20);
+  cout << boolalpha;
   cout << r.contains(15) << endl;
-  Range<int> r(10, 20);
-  cout << r.contains(15) << endl;
+}
+
+// -----------
+// SFINAE
+// -----------
+template <typename T>
+typename std::enable_if<std::is_integral<T>::value, T>::type
+increment(T value) {
+  cout << "Integral verison called\n";
+  return value + 1;
+}
+
+template <typename T>
+typename std::enable_if<std::is_floating_point<T>::value, T>::type
+increment(T value) {
+  cout << "Floating-point version called\n";
+  return value + 0.5;
+}
+
+template <typename, typename = void>
+struct has_size_method : std::false_type {};
+
+template <typename T>
+struct has_size_method<T, std::void_t<decltype(std::declval<T>().size())>> : std::true_type {};
+
+template <typename T>
+auto print_type(const T& value) -> typename enable_if<is_integral<T>::value>::type {
+  cout << "Integral type: " << value << endl;
+}
+
+template <typename T>
+auto print_type(const T& value) -> typename enable_if<is_floating_point<T>::value>::type {
+  cout << "Floating-point type: " << value << endl;
+}
+
+template <typename T>
+auto print_type(const T& value) -> typename enable_if<!is_arithmetic<T>::value>::type {
+  cout << "Other type: " << value << endl;
+}
+
+void test_sfinae() {
+  cout << "=== Basic ===\n";
+  cout << increment(10) << endl;
+  cout << increment(10.0) << endl;
+
+  cout << "=== Detect if a class has a member function ===\n";
+  cout << boolalpha;
+  cout << has_size_method<int>::value << endl;
+  cout << has_size_method<vector<int>>::value << endl;
+  cout << has_size_method<string>::value << endl;
+
+  cout << "=== Function overloading with SFINAE\n";
+  print_type(42);
+  print_type(3.14);
+  print_type("Hello world");
+}
+
+// -----------
+// decltype/auto
+// -----------
+int global_x = 10;
+
+int& get_ref() { return global_x; }
+int get_val() { return global_x; }
+
+template <typename Container>
+decltype(auto) get_first(Container&& c) {
+  return std::forward<Container>(c).front();
+}
+
+void test_decltype_auto() {
+  {
+    cout << "=== Basic ===\n";
+    int x = 42;
+    const double& y = 3.14;
+    string s = "hello";
+
+    decltype(x) a = 10; // int
+    decltype((x)) b = x; // int&
+    decltype(y) c = y; // const double&
+    decltype(s.size()) len = 5; // size_t
+
+    cout << a << " " << b << " " << c << " " << len << endl;
+  }
+
+  {
+    cout << "=== decltype(auto) ===\n";
+    auto a = get_ref();
+    decltype(auto) b = get_ref();
+
+    a = 20;
+    b = 30;
+
+    cout << "global_x = " << global_x << endl;
+  }
+
+  {
+    vector<int> v = {1, 2, 3};
+    cout << get_first(v) << endl;
+
+    get_first(v) = 42;
+    cout << v[0] << endl;
+
+    const vector<int> cv = {4, 5, 6};
+    cout << get_first(cv) << endl;
+  }
 }
