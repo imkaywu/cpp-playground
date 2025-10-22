@@ -35,6 +35,7 @@ void test_crtp();
 void test_concept();
 void test_sfinae();
 void test_decltype_auto();
+void test_perfect_forwarding();
 
 int main() {
   // test_cin();
@@ -61,7 +62,8 @@ int main() {
   // test_crtp();
   // test_concept();
   // test_sfinae();
-  test_decltype_auto();
+  // test_decltype_auto();
+  test_perfect_forwarding();
 
   return 0;
 }
@@ -1263,4 +1265,80 @@ void test_decltype_auto() {
     const vector<int> cv = {4, 5, 6};
     cout << get_first(cv) << endl;
   }
+}
+
+// -----------
+// perfect forwarding
+// -----------
+void process(const string& s) {
+  std::cout << "process(const&): " << s << "\n";
+}
+
+void process(string&& s) {
+  std::cout << "process(&&): " << s << "\n";
+}
+
+template <typename T>
+void wrapper(T&& arg) {
+  cout << "wrapper forwarding...\n";
+  process(std::forward<T>(arg));  // perfect forwarding
+}
+
+template<typename T>
+class MyVector {
+  T* data;
+  size_t capacity;
+  size_t pos;
+
+public:
+  MyVector(int cap = 4) : capacity(cap), pos(0) {
+    // ::operator new(sizeof(T) * capacity): allocate raw memory like malloc
+    data = static_cast<T*>(::operator new(sizeof(T) * capacity));
+  }
+
+  ~MyVector() {
+    for (size_t i = 0; i < pos; ++i) {
+      data[i].~T();
+    }
+    // ::operator delete(data): free raw memory
+    ::operator delete(data);
+  }
+
+  void push_back(const T& value) {
+    cout << "push_back(const T&) called\n";
+    // new (ptr) T(args...): placement new, constructs objects at that memory
+    new (&data[pos++]) T(value);
+  }
+
+  void push_back(T&& value) {
+    cout << "push_back(T&&) called\n";
+    new (&data[pos++]) T(std::move(value));
+  }
+
+  template<class... Args>
+  void emplace_back(Args&&... args) {
+    cout << "emplace_back(Args&&...) called\n";
+    new (&data[pos++]) T(std::forward<Args>(args)...);
+  }
+
+  const T& operator[](size_t i) const { return data[i]; }
+  size_t size() const { return pos; }
+};
+
+void test_perfect_forwarding() {
+  cout << "=== Basic ===\n";
+  string name = "Hello";
+  wrapper(name);                  // lvalue
+  wrapper(std::string("World"));  // rvalue
+
+  cout << "=== Emplace and push back ===\n";
+  MyVector<Tracker> mv1;
+  Tracker t1("Alice");
+  mv1.push_back(t1); // copy
+
+  MyVector<Tracker> mv2;
+  mv2.push_back(Tracker("Bob")); // move
+
+  MyVector<Tracker> mv3;
+  mv3.emplace_back("Charlie"); // in-place, no copy/move
 }
