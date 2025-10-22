@@ -31,3 +31,7 @@ void function_2() {
     std::cout << "t2 got a value from t1: " << data << std::endl;
   }
 }
+
+int main() {
+  return 0;
+}
