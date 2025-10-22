@@ -36,6 +36,7 @@ void test_concept();
 void test_sfinae();
 void test_decltype_auto();
 void test_perfect_forwarding();
+void test_if_constexpr();
 
 int main() {
   // test_cin();
@@ -63,7 +64,8 @@ int main() {
   // test_concept();
   // test_sfinae();
   // test_decltype_auto();
-  test_perfect_forwarding();
+  // test_perfect_forwarding();
+  test_if_constexpr();
 
   return 0;
 }
@@ -1341,4 +1343,25 @@ void test_perfect_forwarding() {
 
   MyVector<Tracker> mv3;
   mv3.emplace_back("Charlie"); // in-place, no copy/move
+}
+
+// -----------
+// if constexpr
+// -----------
+template <typename T>
+void print_info(const T& value) {
+  if constexpr (std::is_arithmetic_v<T>) {
+    cout << "Arithmetic value: " << value << endl;
+  } else if constexpr (std::is_same_v<T, string>) {
+    cout << "String value: " << value << endl;
+  } else {
+    cout << "Other type" << endl;
+  }
+}
+
+void test_if_constexpr() {
+  print_info(42);
+  print_info(3.14);
+  print_info(string("Hi"));
+  print_info(vector<int>{1, 2, 3});
 }
