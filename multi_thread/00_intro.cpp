@@ -10,6 +10,7 @@ int main() {
   // t1.join(); // main thread waits for t1 to finish
   t1.detach(); // t1 will be on its own - daemon process
 
+  // Checks if the thread object owns a running (joinable) thread
   if (t1.joinable()) {
     t1.join(); // crash
   } else {
