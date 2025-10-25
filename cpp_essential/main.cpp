@@ -1,10 +1,10 @@
+#include <concepts> // for C++20 concepts like std::integral
 #include <cstdio>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <type_traits>
 #include <utility>
-#include <concepts> // for C++20 concepts like std::integral
 
 using namespace std;
 
@@ -338,7 +338,10 @@ auto f() { return x; };             // return int
 auto g() { return (x); };           // return int, drop reference
 decltype(auto) h() { return (x); }; // return int&
 
-template <typename T, typename U> auto add2(T a, U b) { return a + b; }
+template <typename T, typename U>
+auto add2(T a, U b) {
+  return a + b;
+}
 
 void test_auto_return_type_deduct() {
   cout << "=== single return ===\n";
@@ -362,9 +365,7 @@ void test_auto_return_type_deduct() {
 // -----------
 // basic pointer
 // -----------
-void allocate(int* p) {
-  p = new int(10);
-}
+void allocate(int *p) { p = new int(10); }
 
 void allocate(int **p) {
   *p = new int(10); // modifies the pointer
@@ -402,13 +403,9 @@ void test_basic_pointer() {
 // -----------
 // NULL v nullptr
 // -----------
-void foo(int n) {
-  cout << "int overload\n";
-}
+void foo(int n) { cout << "int overload\n"; }
 
-void foo(int* p) {
-  cout << "int* overload\n";
-}
+void foo(int *p) { cout << "int* overload\n"; }
 
 void test_nullptr_NULL_macro() {
   foo(0);
@@ -454,13 +451,13 @@ void test_const_correctness() {
   cout << "*p1=" << *p1 << endl;
 
   cout << "=== const pointer to non-const data ===\n";
-  int* const p2 = &a;
+  int *const p2 = &a;
   *p2 = 40;
   cout << "*p2=" << *p2 << endl;
   // p2 = &b; // error: cannot modify pointer
 
   cout << "=== const pointer to const data ===\n";
-  const int* const p3 = &a;
+  const int *const p3 = &a;
   cout << "*p3=" << *p3 << endl;
   // *p3 = 50; error: cannot modify data
   // p3 = &b; error: cannot modify pointer
@@ -473,9 +470,10 @@ class FileRAII {
   FILE *file;
 
 public:
-  FileRAII(const char* name, const char* mode) {
+  FileRAII(const char *name, const char *mode) {
     file = fopen(name, mode);
-    if (!file) throw runtime_error("Failed to open file");
+    if (!file)
+      throw runtime_error("Failed to open file");
     cout << "File opended\n";
   }
 
@@ -486,25 +484,22 @@ public:
     }
   }
 
-  void write(const char* msg) {
-    fprintf(file, "%s\n", msg);
-  }
+  void write(const char *msg) { fprintf(file, "%s\n", msg); }
 
   // disable copying (if resource is unique)
-  FileRAII(const FileRAII&) = delete;
-  FileRAII& operator=(const FileRAII&) = delete;
+  FileRAII(const FileRAII &) = delete;
+  FileRAII &operator=(const FileRAII &) = delete;
 };
 
 void test_RAII() {
   try {
     FileRAII file("out.txt", "w");
     file.write("Hello RAII");
-    
+
     // exception safety: destructor always runs, even if an exception is thrown
-    throw runtime_error("Simulated exception"); 
-                                                
-                                                
-  } catch(...) {
+    throw runtime_error("Simulated exception");
+
+  } catch (...) {
     cout << "Exception caught\n";
   }
 }
@@ -516,13 +511,9 @@ struct Node {
   string name;
   shared_ptr<Node> next;
 
-  Node(string n) : name(n) {
-    cout << "Construct node: " << name << endl;
-  }
+  Node(string n) : name(n) { cout << "Construct node: " << name << endl; }
 
-  ~Node() {
-    cout << "Destroy node: " << name << endl;
-  }
+  ~Node() { cout << "Destroy node: " << name << endl; }
 };
 
 void test_smart_pointer() {
@@ -531,27 +522,32 @@ void test_smart_pointer() {
   cout << "=== Create two nodes ===\n";
   auto a = make_shared<Node>("A"); // a.use_count == 1
   auto b = make_shared<Node>("B"); // b.use_count == 1
-  
+
   weak_ptr<Node> wa = a;
   weak_ptr<Node> wb = b;
 
-  cout << "Initial counts: a=" << a.use_count() << ", b=" << b.use_count() << endl;
+  cout << "Initial counts: a=" << a.use_count() << ", b=" << b.use_count()
+       << endl;
 
   cout << "=== Link A -> B ===\n";
   a->next = b;
-  cout << "After A -> B, a=" << a.use_count() << ", b=" << b.use_count() << endl;
+  cout << "After A -> B, a=" << a.use_count() << ", b=" << b.use_count()
+       << endl;
 
   cout << "=== Link B -> A (create cycle) ===\n";
   b->next = a;
-  cout << "After B -> A, a=" << a.use_count() << ", b=" << b.use_count() << endl;
+  cout << "After B -> A, a=" << a.use_count() << ", b=" << b.use_count()
+       << endl;
 
   cout << "=== Reset local shared_ptrs a & b ===\n";
   a.reset(); // a stops owning the object -> strong_count decrease by 1
   b.reset();
   if (!a) {
-    cout << "After reset locals, a is nullptr, a.use_count=" << a.use_count() << endl;
+    cout << "After reset locals, a is nullptr, a.use_count=" << a.use_count()
+         << endl;
   }
-  cout << "After reset locals, wa.use_count=" << wa.use_count() << ", wb.use_count=" << wb.use_count() << endl;
+  cout << "After reset locals, wa.use_count=" << wa.use_count()
+       << ", wb.use_count=" << wb.use_count() << endl;
 
   cout << "=== Break the cycle by resetting internal 'next' links ===\n";
   if (auto sa = wa.lock()) {
@@ -560,7 +556,8 @@ void test_smart_pointer() {
   if (auto sb = wb.lock()) {
     sb->next.reset(); /// release shared_ptr to A
   }
-  cout << "After breaking internal links, wa.use_count=" << wa.use_count() << ", wb.use_count=" << wb.use_count() << endl;
+  cout << "After breaking internal links, wa.use_count=" << wa.use_count()
+       << ", wb.use_count=" << wb.use_count() << endl;
 }
 
 // -----------
@@ -579,19 +576,21 @@ class Circle : public Shape {
 
 public:
   Circle(int r) : radius(r) { cout << "Construct Circle\n"; }
-  void draw() const override { cout << "Draw circle with radius: " << radius << endl; }
+  void draw() const override {
+    cout << "Draw circle with radius: " << radius << endl;
+  }
   ~Circle() { cout << "Destruct Circle\n"; }
 
-  friend void showRadius(const Circle&);
+  friend void showRadius(const Circle &);
 };
 
-void showRadius(const Circle& c) {
+void showRadius(const Circle &c) {
   cout << "Circle radius: " << c.radius << endl;
 }
 
 // Class with constructors/desctructors/copy/move
 class Resource {
-// Private does not mean “object-private.” It means “class-private.”
+  // Private does not mean “object-private.” It means “class-private.”
 private:
   int *data;
 
@@ -605,14 +604,14 @@ public:
   }
 
   // copy constructor
-  Resource(const Resource& other) {
+  Resource(const Resource &other) {
     data = new int(*other.data);
     count++;
     cout << "Copy construct Resource, value=" << *data << endl;
   }
 
   // move constructor
-  Resource(Resource&& other) noexcept {
+  Resource(Resource &&other) noexcept {
     data = other.data;
     other.data = nullptr;
     count++;
@@ -620,7 +619,7 @@ public:
   }
 
   // copy assignment
-  Resource& operator=(const Resource& other) {
+  Resource &operator=(const Resource &other) {
     if (this != &other) {
       delete data;
       data = new int(*other.data);
@@ -630,7 +629,7 @@ public:
   }
 
   // move assignment
-  Resource& operator=(Resource&& other) noexcept{
+  Resource &operator=(Resource &&other) noexcept {
     if (this != &other) {
       delete data;
       data = other.data;
@@ -653,7 +652,7 @@ public:
 
   int get() const { return *data; }
 
-  Resource operator+(const Resource& other) const {
+  Resource operator+(const Resource &other) const {
     return Resource(*data + *other.data);
   }
 
@@ -674,17 +673,17 @@ void test_oop() {
   cout << "=== Constructors/Copy/Move ===\n";
   Resource r1(10);
   Resource r2(20);
-  Resource r3 = r1; // copy construct
-  Resource r4 = r1 + r2; // operator+
-  r3 = r2; // copy assign
+  Resource r3 = r1;            // copy construct
+  Resource r4 = r1 + r2;       // operator+
+  r3 = r2;                     // copy assign
   Resource r5 = std::move(r1); // move construct
-  r5 = std::move(r2); // move assign
+  r5 = std::move(r2);          // move assign
   cout << "Current resource count: " << Resource::get_count() << endl;
 
   cout << "=== Polymorphism ===\n";
   unique_ptr<Shape> shape = make_unique<Circle>(5);
   shape->draw();
-  Circle* circle = dynamic_cast<Circle*>(shape.get());
+  Circle *circle = dynamic_cast<Circle *>(shape.get());
   showRadius(*circle);
 
   cout << "=== RAII & smart pointer ===\n";
@@ -736,15 +735,14 @@ public:
 };
 class Derived2 : public Base2 {
   int data;
+
 public:
   Derived2(int x, int y) : Base2(x), data(y) {
-    cout << "Derived(" << x << ", " << y << ")\n";    
+    cout << "Derived(" << x << ", " << y << ")\n";
   }
 };
 
-void test_base_class_init() {
-  Derived2 d(1, 2);
-}
+void test_base_class_init() { Derived2 d(1, 2); }
 
 // -----------
 // dynamic dispatch (vtable)
@@ -752,7 +750,6 @@ void test_base_class_init() {
 // dynamic dispatch: deciding function call at runtime
 // vtable: Table of function pointers for virtual functions
 // vptr: Hidden pointer in objects pointing to vtable
-
 
 // -----------
 // dynamic cast for RTTI
@@ -783,14 +780,14 @@ auto multiply(T a, U b) {
 
 // Template Specialization: specialize (customize) the template's behavior for
 // particular template arguments.
-template<>
+template <>
 string addTwo<string>(string a, string b) {
   cout << "[Specialization] addTwo<string>(string,string) called\n";
   return a + " & " + b;
 }
 
 template <typename T>
-requires integral<T>
+  requires integral<T>
 T square(T x) {
   cout << "[Constained] square(T) where T is integral\n";
   return x * x;
@@ -801,7 +798,7 @@ void test_function_template() {
   cout << addTwo(3, 4) << endl
        << addTwo(2.5, 4.1) << endl
        << addTwo(string("Hi"), string("Bob")) << endl;
-  
+
   cout << "=== Multiple Type Parameters ===\n";
   cout << multiply(3, 4.5) << endl;
 
@@ -820,8 +817,9 @@ template <typename T>
 class Box {
 protected:
   T value;
+
 public:
-  Box(T v) : value(v) {};
+  Box(T v) : value(v){};
   T get() const { return value; }
   void set(T v) { value = v; }
 };
@@ -829,6 +827,7 @@ public:
 template <typename T>
 class SafeBox : public Box<T> {
   bool locked;
+
 public:
   SafeBox(T v) : Box<T>(v), locked(true) {}
 
@@ -843,7 +842,7 @@ public:
   }
 };
 
-template<>
+template <>
 class SafeBox<string> : public Box<string> {
 public:
   SafeBox(string v) : Box<string>("Encrypted: " + v) {}
@@ -901,7 +900,7 @@ void print(T first, Args... args) {
   print(args...);
 }
 
-template<typename... Args>
+template <typename... Args>
 void print_fold(Args... args) {
   // comma operator: chain all those operations together inside a fold
   ((cout << args << " "), ...);
@@ -962,13 +961,13 @@ class FixedArray {
   T arr[N];
 
 public:
-  void fill(const T& val) {
+  void fill(const T &val) {
     for (size_t i = 0; i < N; ++i) {
       arr[i] = val;
     }
   }
 
-  void show() const { 
+  void show() const {
     cout << "Array size = " << N << " => ";
     for (size_t i = 0; i < N; ++i) {
       cout << arr[i] << " ";
@@ -999,11 +998,11 @@ template <typename Derived>
 class Logger {
 public:
   Logger() {
-    cout << "Creating " << static_cast<Derived*>(this)->to_string() << endl;
+    cout << "Creating " << static_cast<Derived *>(this)->to_string() << endl;
   }
 
   ~Logger() {
-    cout << "Destroying " << static_cast<Derived*>(this)->to_string() << endl;
+    cout << "Destroying " << static_cast<Derived *>(this)->to_string() << endl;
   }
 };
 
@@ -1014,10 +1013,10 @@ private:
   static int count;
 
 public:
-  CounterCRTP() {  ++count; }
-  CounterCRTP(const CounterCRTP&) { ++count; }
-  CounterCRTP(CounterCRTP&&) noexcept { ++count; }
-  CounterCRTP& operator=(const CounterCRTP& other) { ++count; }
+  CounterCRTP() { ++count; }
+  CounterCRTP(const CounterCRTP &) { ++count; }
+  CounterCRTP(CounterCRTP &&) noexcept { ++count; }
+  CounterCRTP &operator=(const CounterCRTP &other) { ++count; }
   ~CounterCRTP() { --count; }
   static int get_count() { return count; }
 };
@@ -1029,8 +1028,8 @@ int CounterCRTP<Derived>::count = 0;
 template <typename Derived>
 class Addable {
 public:
-  Derived operator+(const Derived& other) const {
-    Derived result = static_cast<const Derived&>(*this);
+  Derived operator+(const Derived &other) const {
+    Derived result = static_cast<const Derived &>(*this);
     result += other;
     return result;
   }
@@ -1038,10 +1037,12 @@ public:
 
 // Base CRTP class combining everything
 template <typename Derived>
-class Entity : public Logger<Derived>, public CounterCRTP<Derived>, public Addable<Derived> {
+class Entity : public Logger<Derived>,
+               public CounterCRTP<Derived>,
+               public Addable<Derived> {
 public:
   void print() const {
-    cout << static_cast<const Derived*>(this)->to_string() << endl;
+    cout << static_cast<const Derived *>(this)->to_string() << endl;
   }
 };
 
@@ -1053,16 +1054,14 @@ public:
   Money(int v = 0) : value(v) {}
 
   // Required by Addable mixin
-  Money operator+(const Money& other) {
-    Money res = static_cast<const Money&>(*this);
+  Money operator+(const Money &other) {
+    Money res = static_cast<const Money &>(*this);
     res.value += other.value;
     return res;
   }
 
   // Required by Logger mixin
-  string to_string() const {
-    return "Money (" + std::to_string(value) + ")";
-  }
+  string to_string() const { return "Money (" + std::to_string(value) + ")"; }
 };
 
 void test_crtp() {
@@ -1087,7 +1086,7 @@ void test_crtp() {
 // Concept
 // -----------
 template <typename T>
-requires std::integral<T>
+  requires std::integral<T>
 T multiply_by_two(T x) {
   return x * 2;
 }
@@ -1117,21 +1116,20 @@ void print_type(T) {
 }
 
 template <typename T>
-requires std::integral<T> || std::floating_point<T>
+  requires std::integral<T> || std::floating_point<T>
 T square_concept(T x) {
   return x * x;
 }
 
-auto add_concept(std::integral auto a, std::integral auto b) {
-  return a + b;
-}
+auto add_concept(std::integral auto a, std::integral auto b) { return a + b; }
 
 template <std::totally_ordered T>
 class Range {
   T low, high;
+
 public:
-  Range(T l, T h): low(l), high(h) {}
-  bool contains(const T& x) const { return x >= low && x <= high; }
+  Range(T l, T h) : low(l), high(h) {}
+  bool contains(const T &x) const { return x >= low && x <= high; }
 };
 
 void test_concept() {
@@ -1184,20 +1182,24 @@ template <typename, typename = void>
 struct has_size_method : std::false_type {};
 
 template <typename T>
-struct has_size_method<T, std::void_t<decltype(std::declval<T>().size())>> : std::true_type {};
+struct has_size_method<T, std::void_t<decltype(std::declval<T>().size())>>
+    : std::true_type {};
 
 template <typename T>
-auto print_type(const T& value) -> typename enable_if<is_integral<T>::value>::type {
+auto print_type2(const T &value) ->
+    typename enable_if<is_integral<T>::value>::type {
   cout << "Integral type: " << value << endl;
 }
 
 template <typename T>
-auto print_type(const T& value) -> typename enable_if<is_floating_point<T>::value>::type {
+auto print_type2(const T &value) ->
+    typename enable_if<is_floating_point<T>::value>::type {
   cout << "Floating-point type: " << value << endl;
 }
 
 template <typename T>
-auto print_type(const T& value) -> typename enable_if<!is_arithmetic<T>::value>::type {
+auto print_type2(const T &value) ->
+    typename enable_if<!is_arithmetic<T>::value>::type {
   cout << "Other type: " << value << endl;
 }
 
@@ -1213,9 +1215,9 @@ void test_sfinae() {
   cout << has_size_method<string>::value << endl;
 
   cout << "=== Function overloading with SFINAE\n";
-  print_type(42);
-  print_type(3.14);
-  print_type("Hello world");
+  print_type2(42);
+  print_type2(3.14);
+  print_type2("Hello world");
 }
 
 // -----------
@@ -1223,11 +1225,11 @@ void test_sfinae() {
 // -----------
 int global_x = 10;
 
-int& get_ref() { return global_x; }
+int &get_ref() { return global_x; }
 int get_val() { return global_x; }
 
 template <typename Container>
-decltype(auto) get_first(Container&& c) {
+decltype(auto) get_first(Container &&c) {
   return std::forward<Container>(c).front();
 }
 
@@ -1235,12 +1237,12 @@ void test_decltype_auto() {
   {
     cout << "=== Basic ===\n";
     int x = 42;
-    const double& y = 3.14;
+    const double &y = 3.14;
     string s = "hello";
 
-    decltype(x) a = 10; // int
-    decltype((x)) b = x; // int&
-    decltype(y) c = y; // const double&
+    decltype(x) a = 10;         // int
+    decltype((x)) b = x;        // int&
+    decltype(y) c = y;          // const double&
     decltype(s.size()) len = 5; // size_t
 
     cout << a << " " << b << " " << c << " " << len << endl;
@@ -1272,30 +1274,26 @@ void test_decltype_auto() {
 // -----------
 // perfect forwarding
 // -----------
-void process(const string& s) {
-  std::cout << "process(const&): " << s << "\n";
-}
+void process(const string &s) { std::cout << "process(const&): " << s << "\n"; }
 
-void process(string&& s) {
-  std::cout << "process(&&): " << s << "\n";
+void process(string &&s) { std::cout << "process(&&): " << s << "\n"; }
+
+template <typename T>
+void wrapper(T &&arg) {
+  cout << "wrapper forwarding...\n";
+  process(std::forward<T>(arg)); // perfect forwarding
 }
 
 template <typename T>
-void wrapper(T&& arg) {
-  cout << "wrapper forwarding...\n";
-  process(std::forward<T>(arg));  // perfect forwarding
-}
-
-template<typename T>
 class MyVector {
-  T* data;
+  T *data;
   size_t capacity;
   size_t pos;
 
 public:
   MyVector(int cap = 4) : capacity(cap), pos(0) {
     // ::operator new(sizeof(T) * capacity): allocate raw memory like malloc
-    data = static_cast<T*>(::operator new(sizeof(T) * capacity));
+    data = static_cast<T *>(::operator new(sizeof(T) * capacity));
   }
 
   ~MyVector() {
@@ -1306,32 +1304,32 @@ public:
     ::operator delete(data);
   }
 
-  void push_back(const T& value) {
+  void push_back(const T &value) {
     cout << "push_back(const T&) called\n";
     // new (ptr) T(args...): placement new, constructs objects at that memory
     new (&data[pos++]) T(value);
   }
 
-  void push_back(T&& value) {
+  void push_back(T &&value) {
     cout << "push_back(T&&) called\n";
     new (&data[pos++]) T(std::move(value));
   }
 
-  template<class... Args>
-  void emplace_back(Args&&... args) {
+  template <class... Args>
+  void emplace_back(Args &&...args) {
     cout << "emplace_back(Args&&...) called\n";
     new (&data[pos++]) T(std::forward<Args>(args)...);
   }
 
-  const T& operator[](size_t i) const { return data[i]; }
+  const T &operator[](size_t i) const { return data[i]; }
   size_t size() const { return pos; }
 };
 
 void test_perfect_forwarding() {
   cout << "=== Basic ===\n";
   string name = "Hello";
-  wrapper(name);                  // lvalue
-  wrapper(std::string("World"));  // rvalue
+  wrapper(name);                 // lvalue
+  wrapper(std::string("World")); // rvalue
 
   cout << "=== Emplace and push back ===\n";
   MyVector<Tracker> mv1;
@@ -1349,7 +1347,7 @@ void test_perfect_forwarding() {
 // if constexpr
 // -----------
 template <typename T>
-void print_info(const T& value) {
+void print_info(const T &value) {
   if constexpr (std::is_arithmetic_v<T>) {
     cout << "Arithmetic value: " << value << endl;
   } else if constexpr (std::is_same_v<T, string>) {
