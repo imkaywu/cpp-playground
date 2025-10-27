@@ -1,11 +1,11 @@
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <iostream>
-#include <thread>
 #include <mutex>
 #include <shared_mutex>
-#include <condition_variable>
-#include <atomic>
+#include <thread>
 #include <vector>
-#include <chrono>
 
 using namespace std;
 
@@ -14,7 +14,7 @@ int shared_data = 0;
 
 mutex mtx;
 // same thread can lock it multiple times (used in recursion)
-recursive_mutex re_mtx; 
+recursive_mutex re_mtx;
 // allows multiple readers, but a single writer to hold it
 shared_mutex rw_mtx;
 
@@ -34,10 +34,11 @@ void increment_with_mutex() {
 
 // 2. recursive_mutex
 void recursive_func(int n) {
-  if (n <= 0) return;
+  if (n <= 0)
+    return;
   re_mtx.lock();
   cout << "re_mtx depth: " << n << endl;
-  recursive_func(n-1);
+  recursive_func(n - 1);
   re_mtx.unlock();
 }
 
@@ -102,7 +103,8 @@ void spinlock_example() {
   while (atomic_flag_lock.test_and_set(memory_order_acquire)) {
     // busy-wait (spin)
   }
-  cout << "Atomic flag lock acquired by thread " << this_thread::get_id() << endl;
+  cout << "Atomic flag lock acquired by thread " << this_thread::get_id()
+       << endl;
   this_thread::sleep_for(chrono::milliseconds(100));
   atomic_flag_lock.clear(memory_order_release);
 }
@@ -128,15 +130,21 @@ int main() {
 
   cout << "=== 5. shared_mutex (readers/writers) ===\n";
   vector<thread> readers, writers;
-  for (int i = 0; i < 3; ++i) readers.emplace_back(reader, i);
-  for (int i = 0; i < 2; ++i) writers.emplace_back(writer, i);
-  for (auto& t : readers) t.join();
-  for (auto& t : writers) t.join();
+  for (int i = 0; i < 3; ++i)
+    readers.emplace_back(reader, i);
+  for (int i = 0; i < 2; ++i)
+    writers.emplace_back(writer, i);
+  for (auto &t : readers)
+    t.join();
+  for (auto &t : writers)
+    t.join();
 
   cout << "=== 6. atomic operations ===\n";
   vector<thread> atom_threads;
-  for (int i = 0; i < 4; ++i) atom_threads.emplace_back(atomic_example);
-  for (auto& t : atom_threads) t.join();
+  for (int i = 0; i < 4; ++i)
+    atom_threads.emplace_back(atomic_example);
+  for (auto &t : atom_threads)
+    t.join();
   cout << "Atomic counter = " << atomic_counter.load() << endl;
 
   cout << "=== 7. atomic_flag (spinlock) ===\n";

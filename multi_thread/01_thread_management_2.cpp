@@ -1,6 +1,6 @@
+#include <chrono>
 #include <iostream>
 #include <thread>
-#include <chrono>
 
 using namespace std;
 
@@ -10,17 +10,18 @@ using namespace std;
 // -------------------------------
 thread_local int thread_counter = 0;
 
-void worker(int id, const string& name) {
+void worker(int id, const string &name) {
   ++thread_counter;
 
-  cout << "Thread " << id << " (" << name << ") running on ID " << this_thread::get_id()
-       << ", thread_local counter = " << thread_counter << endl;
-  
+  cout << "Thread " << id << " (" << name << ") running on ID "
+       << this_thread::get_id() << ", thread_local counter = " << thread_counter
+       << endl;
+
   this_thread::sleep_for(chrono::milliseconds(500));
   cout << "Thread " << id << " done\n";
 }
 
-void increment(int& x) {
+void increment(int &x) {
   for (int i = 0; i < 5; ++i) {
     ++x;
     this_thread::sleep_for(chrono::milliseconds(100));
@@ -52,7 +53,8 @@ int main() {
 
   this_thread::sleep_for(chrono::seconds(1));
 
-  cout << "\nShared value after detached thread increment: " << shared_value << endl;
+  cout << "\nShared value after detached thread increment: " << shared_value
+       << endl;
 
   cout << "\nMain thread done.\n";
 
