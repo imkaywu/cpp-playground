@@ -42,7 +42,19 @@ void recursive_func(int n) {
   re_mtx.unlock();
 }
 
-// 3. unique_lock + defer/adopt/try_lock
+// 3. shared_mutex
+void reader(int id) {
+  shared_lock<shared_mutex> lock(rw_mtx);
+  cout << "Reader " << id << " reads shared_data = " << shared_data << endl;
+}
+
+void writer(int id) {
+  unique_lock<shared_mutex> lock(rw_mtx);
+  shared_data++;
+  cout << "Writer " << id << " updates shared_data = " << shared_data << endl;
+}
+
+// 4. unique_lock + defer/adopt/try_lock
 // unique_lock: more flexible lock
 void unique_lock_example() {
   unique_lock<mutex> lock(mtx, defer_lock); // not locked yet
@@ -58,7 +70,7 @@ void unique_lock_example() {
   // lock auto-unlocked when goes out of scope
 }
 
-// 4. condition_variable (wait/notify)
+// 5. condition_variable (wait/notify)
 void worker_wait() {
   unique_lock<mutex> lock(mtx);
   cout << "Worker waiting...\n";
@@ -75,18 +87,6 @@ void notifier() {
     cout << "Notifier: setting ready = true\n";
   }
   cv.notify_one(); // wake up one waiting thread
-}
-
-// 5. shared_mutex
-void reader(int id) {
-  shared_lock<shared_mutex> lock(rw_mtx);
-  cout << "Reader " << id << " reads shared_data = " << shared_data << endl;
-}
-
-void writer(int id) {
-  unique_lock<shared_mutex> lock(rw_mtx);
-  shared_data++;
-  cout << "Writer " << id << " updates shared_data = " << shared_data << endl;
 }
 
 // 6. atomic and atomic_flag
@@ -116,19 +116,10 @@ int main() {
   t1.join();
   t2.join();
 
-  cout << "=== 2. Recursive mutex ===\n";
+  cout << "=== 2. recursive_mutex ===\n";
   recursive_func(3);
 
-  cout << "=== 3. unique_lock ===\n";
-  unique_lock_example();
-
-  cout << "=== 4. condition_variable ===\n";
-  thread waiter(worker_wait);
-  thread signaler(notifier);
-  waiter.join();
-  signaler.join();
-
-  cout << "=== 5. shared_mutex (readers/writers) ===\n";
+  cout << "=== 3. shared_mutex (readers/writers) ===\n";
   vector<thread> readers, writers;
   for (int i = 0; i < 3; ++i)
     readers.emplace_back(reader, i);
@@ -138,6 +129,15 @@ int main() {
     t.join();
   for (auto &t : writers)
     t.join();
+
+  cout << "=== 4. unique_lock ===\n";
+  unique_lock_example();
+
+  cout << "=== 5. condition_variable ===\n";
+  thread waiter(worker_wait);
+  thread signaler(notifier);
+  waiter.join();
+  signaler.join();
 
   cout << "=== 6. atomic operations ===\n";
   vector<thread> atom_threads;
