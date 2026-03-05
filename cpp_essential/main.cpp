@@ -1,4 +1,4 @@
-#include <concepts> // for C++20 concepts like std::integral
+#include <concepts>  // for C++20 concepts like std::integral
 #include <cstdio>
 #include <iostream>
 #include <memory>
@@ -10,7 +10,7 @@
 
 using namespace std;
 
-constexpr double PI = 3.14; // compile-time constant
+constexpr double PI = 3.14;  // compile-time constant
 
 void test_cin();
 void test_init();
@@ -125,20 +125,20 @@ void test_init() {
 // type cast
 // -----------
 class Base {
-public:
+ public:
   virtual void speak() { std::cout << "Base speaking\n"; }
   virtual ~Base() = default;
 };
 
 class Derived : public Base {
-public:
+ public:
   void speak() override { std::cout << "Derived speaking\n"; }
 };
 
 void test_type_cast() {
   cout << "=== static_cast ===\n";
   double d = 3.14;
-  int i = static_cast<int>(d); // truncates to 3
+  int i = static_cast<int>(d);  // truncates to 3
   cout << "double: " << d << " -> int " << i << endl;
 
   Derived der;
@@ -196,7 +196,7 @@ Tracker global_var("Global");
 
 Tracker ReturnByValue() {
   Tracker t("Value");
-  return t; // Return-Value-Optimization(RVO)/move applies
+  return t;  // Return-Value-Optimization(RVO)/move applies
 }
 
 Tracker &ReturnByRef() { return global_var; }
@@ -204,7 +204,7 @@ Tracker &ReturnByRef() { return global_var; }
 const Tracker &ReturnByConstRef() { return global_var; }
 
 Tracker *ReturnByPointer() {
-  return new Tracker("Pointer"); // caller must delete
+  return new Tracker("Pointer");  // caller must delete
 }
 
 void test_return_semantics() {
@@ -300,8 +300,8 @@ void test_lambda_function() {
   cout << "=== mutable lambda ===\n";
   int n = 5;
   auto f = [n]() mutable {
-    n += 10; // lambdas that capture by value can NOT modify the copies unless
-             // using mutable
+    n += 10;  // lambdas that capture by value can NOT modify the copies unless
+              // using mutable
     return n;
   };
   cout << "n=" << n << endl << "n+10=" << f() << endl;
@@ -309,8 +309,7 @@ void test_lambda_function() {
   cout << "=== lambda as function arguments ===\n";
   vector<int> v = {1, 2, 3, 4, 5};
   sort(v.begin(), v.end(), [](int a, int b) { return a > b; });
-  for (int x : v)
-    cout << x << " ";
+  for (int x : v) cout << x << " ";
 
   cout << "\n=== lambda in std::function ===\n";
   function<int(int, int)> func = [](int a, int b) { return a + b; };
@@ -338,9 +337,9 @@ auto foo(bool flag) {
 }
 
 int x = 10;
-auto f() { return x; };             // return int
-auto g() { return (x); };           // return int, drop reference
-decltype(auto) h() { return (x); }; // return int&
+auto f() { return x; };              // return int
+auto g() { return (x); };            // return int, drop reference
+decltype(auto) h() { return (x); };  // return int&
 
 template <typename T, typename U>
 auto add2(T a, U b) {
@@ -372,14 +371,14 @@ void test_auto_return_type_deduct() {
 void allocate(int *p) { p = new int(10); }
 
 void allocate(int **p) {
-  *p = new int(10); // modifies the pointer
+  *p = new int(10);  // modifies the pointer
 }
 
 void test_basic_pointer() {
   cout << "=== pointer ===\n";
   int x = 5;
   int *px = &x;
-  int **ppx = &px; // pointer to pointer
+  int **ppx = &px;  // pointer to pointer
   cout << "x=" << x << endl
        << "*px=" << *px << endl
        << "**ppx=" << **ppx << endl;
@@ -473,11 +472,10 @@ void test_const_correctness() {
 class FileRAII {
   FILE *file;
 
-public:
+ public:
   FileRAII(const char *name, const char *mode) {
     file = fopen(name, mode);
-    if (!file)
-      throw runtime_error("Failed to open file");
+    if (!file) throw runtime_error("Failed to open file");
     cout << "File opended\n";
   }
 
@@ -524,8 +522,8 @@ void test_smart_pointer() {
   using std::make_shared;
 
   cout << "=== Create two nodes ===\n";
-  auto a = make_shared<Node>("A"); // a.use_count == 1
-  auto b = make_shared<Node>("B"); // b.use_count == 1
+  auto a = make_shared<Node>("A");  // a.use_count == 1
+  auto b = make_shared<Node>("B");  // b.use_count == 1
 
   weak_ptr<Node> wa = a;
   weak_ptr<Node> wb = b;
@@ -544,7 +542,7 @@ void test_smart_pointer() {
        << endl;
 
   cout << "=== Reset local shared_ptrs a & b ===\n";
-  a.reset(); // a stops owning the object -> strong_count decrease by 1
+  a.reset();  // a stops owning the object -> strong_count decrease by 1
   b.reset();
   if (!a) {
     cout << "After reset locals, a is nullptr, a.use_count=" << a.use_count()
@@ -555,10 +553,10 @@ void test_smart_pointer() {
 
   cout << "=== Break the cycle by resetting internal 'next' links ===\n";
   if (auto sa = wa.lock()) {
-    sa->next.reset(); // release shared_ptr to B
+    sa->next.reset();  // release shared_ptr to B
   }
   if (auto sb = wb.lock()) {
-    sb->next.reset(); /// release shared_ptr to A
+    sb->next.reset();  /// release shared_ptr to A
   }
   cout << "After breaking internal links, wa.use_count=" << wa.use_count()
        << ", wb.use_count=" << wb.use_count() << endl;
@@ -579,16 +577,16 @@ void test_singleton() {
 // -----------
 // Base class with polymorphism
 class Shape {
-public:
+ public:
   Shape() { cout << "Construct Shape\n"; }
-  virtual void draw() const = 0; // pure virtual -> abstract class
+  virtual void draw() const = 0;  // pure virtual -> abstract class
   virtual ~Shape() { cout << "Destruct Shape\n"; }
 };
 
 class Circle : public Shape {
   int radius;
 
-public:
+ public:
   Circle(int r) : radius(r) { cout << "Construct Circle\n"; }
   void draw() const override {
     cout << "Draw circle with radius: " << radius << endl;
@@ -605,10 +603,10 @@ void showRadius(const Circle &c) {
 // Class with constructors/desctructors/copy/move
 class Resource {
   // Private does not mean “object-private.” It means “class-private.”
-private:
+ private:
   int *data;
 
-public:
+ public:
   static int count;
 
   Resource(int val = 0) {
@@ -676,22 +674,22 @@ public:
 class Manager {
   unique_ptr<Resource> res;
 
-public:
+ public:
   Manager(int val) : res(make_unique<Resource>(val)) {}
   void show() { cout << "Managed resource = " << res->get() << endl; }
 };
 
-int Resource::count = 0; // static members need a definition in a source file
+int Resource::count = 0;  // static members need a definition in a source file
 
 void test_oop() {
   cout << "=== Constructors/Copy/Move ===\n";
   Resource r1(10);
   Resource r2(20);
-  Resource r3 = r1;            // copy construct
-  Resource r4 = r1 + r2;       // operator+
-  r3 = r2;                     // copy assign
-  Resource r5 = std::move(r1); // move construct
-  r5 = std::move(r2);          // move assign
+  Resource r3 = r1;             // copy construct
+  Resource r4 = r1 + r2;        // operator+
+  r3 = r2;                      // copy assign
+  Resource r5 = std::move(r1);  // move construct
+  r5 = std::move(r2);           // move assign
   cout << "Current resource count: " << Resource::get_count() << endl;
 
   cout << "=== Polymorphism ===\n";
@@ -717,18 +715,18 @@ void test_oop() {
 //     \ /
 //      D
 class A {
-public:
+ public:
   A() { cout << "A constructed\n"; }
   ~A() { cout << "A destroyed\n"; }
   int value = 1;
 };
 class B : virtual public A {
-public:
+ public:
   B() { cout << "B constructed\n"; }
   ~B() { cout << "B destroyed\n"; }
 };
 class C : virtual public A {
-public:
+ public:
   C() { cout << "C constructed\n"; }
   ~C() { cout << "C destroyed\n"; }
 };
@@ -736,7 +734,7 @@ class D : public B, public C {};
 
 void test_multi_inheritance() {
   D d;
-  d.value = 42; // unambiguous
+  d.value = 42;  // unambiguous
   cout << d.value << endl;
 }
 
@@ -744,13 +742,13 @@ void test_multi_inheritance() {
 // Base class initialization
 // -----------
 class Base2 {
-public:
+ public:
   Base2(int x) { cout << "Base(" << x << ")\n"; }
 };
 class Derived2 : public Base2 {
   int data;
 
-public:
+ public:
   Derived2(int x, int y) : Base2(x), data(y) {
     cout << "Derived(" << x << ", " << y << ")\n";
   }
@@ -829,10 +827,10 @@ void test_function_template() {
 // -----------
 template <typename T>
 class Box {
-protected:
+ protected:
   T value;
 
-public:
+ public:
   Box(T v) : value(v){};
   T get() const { return value; }
   void set(T v) { value = v; }
@@ -842,7 +840,7 @@ template <typename T>
 class SafeBox : public Box<T> {
   bool locked;
 
-public:
+ public:
   SafeBox(T v) : Box<T>(v), locked(true) {}
 
   void lock() { locked = true; }
@@ -858,7 +856,7 @@ public:
 
 template <>
 class SafeBox<string> : public Box<string> {
-public:
+ public:
   SafeBox(string v) : Box<string>("Encrypted: " + v) {}
   string get_value() const { return this->value; }
 };
@@ -883,13 +881,13 @@ void test_class_template() {
 // -----------
 template <typename T1, typename T2>
 class Pair {
-public:
+ public:
   void print() { cout << "General pair\n"; }
 };
 
 template <typename T>
 class Pair<T, T> {
-public:
+ public:
   void print() { cout << "Partial specialization: both types same\n"; }
 };
 
@@ -932,7 +930,7 @@ unique_ptr<T> make_unique_custom(Args... args) {
 }
 
 class Person {
-public:
+ public:
   Person(string n, int a) { cout << "Constructing " << n << ", " << a << endl; }
 };
 
@@ -974,7 +972,7 @@ template <typename T, size_t N>
 class FixedArray {
   T arr[N];
 
-public:
+ public:
   void fill(const T &val) {
     for (size_t i = 0; i < N; ++i) {
       arr[i] = val;
@@ -1023,10 +1021,10 @@ class Logger2 {
 // Counter mixin
 template <typename Derived>
 class CounterCRTP {
-private:
+ private:
   static int count;
 
-public:
+ public:
   CounterCRTP() { ++count; }
   CounterCRTP(const CounterCRTP &) { ++count; }
   CounterCRTP(CounterCRTP &&) noexcept { ++count; }
@@ -1041,7 +1039,7 @@ int CounterCRTP<Derived>::count = 0;
 // Addable mixin
 template <typename Derived>
 class Addable {
-public:
+ public:
   Derived operator+(const Derived &other) const {
     Derived result = static_cast<const Derived &>(*this);
     result += other;
@@ -1054,7 +1052,7 @@ template <typename Derived>
 class Entity : public Logger2<Derived>,
                public CounterCRTP<Derived>,
                public Addable<Derived> {
-public:
+ public:
   void print() const {
     cout << static_cast<const Derived *>(this)->to_string() << endl;
   }
@@ -1062,7 +1060,7 @@ public:
 
 // Derived class
 class Money : public Entity<Money> {
-public:
+ public:
   int value;
 
   Money(int v = 0) : value(v) {}
@@ -1082,8 +1080,8 @@ void test_crtp() {
   Money m1(30);
   Money m2(50);
 
-  Money m3 = m1 + m2; // call operator+ to create a temp Money instance, then
-                      // copied to m3
+  Money m3 = m1 + m2;  // call operator+ to create a temp Money instance, then
+                       // copied to m3
   m3.print();
 
   cout << "Money instances: " << Money::get_count() << endl;
@@ -1141,7 +1139,7 @@ template <std::totally_ordered T>
 class Range {
   T low, high;
 
-public:
+ public:
   Range(T l, T h) : low(l), high(h) {}
   bool contains(const T &x) const { return x >= low && x <= high; }
 };
@@ -1179,15 +1177,15 @@ void test_concept() {
 // SFINAE
 // -----------
 template <typename T>
-typename std::enable_if<std::is_integral<T>::value, T>::type
-increment(T value) {
+typename std::enable_if<std::is_integral<T>::value, T>::type increment(
+    T value) {
   cout << "Integral verison called\n";
   return value + 1;
 }
 
 template <typename T>
-typename std::enable_if<std::is_floating_point<T>::value, T>::type
-increment(T value) {
+typename std::enable_if<std::is_floating_point<T>::value, T>::type increment(
+    T value) {
   cout << "Floating-point version called\n";
   return value + 0.5;
 }
@@ -1254,10 +1252,10 @@ void test_decltype_auto() {
     const double &y = 3.14;
     string s = "hello";
 
-    decltype(x) a = 10;         // int
-    decltype((x)) b = x;        // int&
-    decltype(y) c = y;          // const double&
-    decltype(s.size()) len = 5; // size_t
+    decltype(x) a = 10;          // int
+    decltype((x)) b = x;         // int&
+    decltype(y) c = y;           // const double&
+    decltype(s.size()) len = 5;  // size_t
 
     cout << a << " " << b << " " << c << " " << len << endl;
   }
@@ -1295,7 +1293,7 @@ void process(string &&s) { std::cout << "process(&&): " << s << "\n"; }
 template <typename T>
 void wrapper(T &&arg) {
   cout << "wrapper forwarding...\n";
-  process(std::forward<T>(arg)); // perfect forwarding
+  process(std::forward<T>(arg));  // perfect forwarding
 }
 
 template <typename T>
@@ -1304,7 +1302,7 @@ class MyVector {
   size_t capacity;
   size_t pos;
 
-public:
+ public:
   MyVector(int cap = 4) : capacity(cap), pos(0) {
     // ::operator new(sizeof(T) * capacity): allocate raw memory like malloc
     data = static_cast<T *>(::operator new(sizeof(T) * capacity));
@@ -1342,19 +1340,19 @@ public:
 void test_perfect_forwarding() {
   cout << "=== Basic ===\n";
   string name = "Hello";
-  wrapper(name);                 // lvalue
-  wrapper(std::string("World")); // rvalue
+  wrapper(name);                  // lvalue
+  wrapper(std::string("World"));  // rvalue
 
   cout << "=== Emplace and push back ===\n";
   MyVector<Tracker> mv1;
   Tracker t1("Alice");
-  mv1.push_back(t1); // copy
+  mv1.push_back(t1);  // copy
 
   MyVector<Tracker> mv2;
-  mv2.push_back(Tracker("Bob")); // move
+  mv2.push_back(Tracker("Bob"));  // move
 
   MyVector<Tracker> mv3;
-  mv3.emplace_back("Charlie"); // in-place, no copy/move
+  mv3.emplace_back("Charlie");  // in-place, no copy/move
 }
 
 // -----------
