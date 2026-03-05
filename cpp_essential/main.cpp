@@ -6,6 +6,8 @@
 #include <type_traits>
 #include <utility>
 
+#include "singleton.cpp"
+
 using namespace std;
 
 constexpr double PI = 3.14; // compile-time constant
@@ -23,6 +25,7 @@ void test_new_delete();
 void test_const_correctness();
 void test_RAII();
 void test_smart_pointer();
+void test_singleton();
 void test_oop();
 void test_multi_inheritance();
 void test_base_class_init();
@@ -52,6 +55,7 @@ int main() {
   // test_const_correctness();
   // test_RAII();
   // test_smart_pointer();
+  test_singleton();
   // test_oop();
   // test_multi_inheritance();
   // test_base_class_init();
@@ -65,7 +69,7 @@ int main() {
   // test_sfinae();
   // test_decltype_auto();
   // test_perfect_forwarding();
-  test_if_constexpr();
+  // test_if_constexpr();
 
   return 0;
 }
@@ -561,6 +565,16 @@ void test_smart_pointer() {
 }
 
 // -----------
+// Singleton
+// -----------
+void test_singleton() {
+  auto &logger = Logger::Instance();
+
+  logger.Info("This is info");
+  logger.Error("This is error");
+}
+
+// -----------
 // OOP
 // -----------
 // Base class with polymorphism
@@ -995,13 +1009,13 @@ void test_nttp() {
 // -----------
 // Logging mixin
 template <typename Derived>
-class Logger {
-public:
-  Logger() {
+class Logger2 {
+ public:
+  Logger2() {
     cout << "Creating " << static_cast<Derived *>(this)->to_string() << endl;
   }
 
-  ~Logger() {
+  ~Logger2() {
     cout << "Destroying " << static_cast<Derived *>(this)->to_string() << endl;
   }
 };
@@ -1037,7 +1051,7 @@ public:
 
 // Base CRTP class combining everything
 template <typename Derived>
-class Entity : public Logger<Derived>,
+class Entity : public Logger2<Derived>,
                public CounterCRTP<Derived>,
                public Addable<Derived> {
 public:
@@ -1060,7 +1074,7 @@ public:
     return res;
   }
 
-  // Required by Logger mixin
+  // Required by Logger2 mixin
   string to_string() const { return "Money (" + std::to_string(value) + ")"; }
 };
 
