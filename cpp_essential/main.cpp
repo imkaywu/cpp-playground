@@ -6,6 +6,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "oop.cpp"
 #include "singleton.cpp"
 
 using namespace std;
@@ -55,7 +56,7 @@ int main() {
   // test_const_correctness();
   // test_RAII();
   // test_smart_pointer();
-  test_singleton();
+  // test_singleton();
   // test_oop();
   // test_multi_inheritance();
   // test_base_class_init();
@@ -70,6 +71,7 @@ int main() {
   // test_decltype_auto();
   // test_perfect_forwarding();
   // test_if_constexpr();
+  run_oop_test();
 
   return 0;
 }
