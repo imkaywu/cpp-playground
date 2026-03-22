@@ -1,6 +1,8 @@
 #include <iostream>
 #include <string_view>
 
+namespace {
+
 // 1. constructor is private
 // 2. singleton access function is static
 // 3. copy and move operations are private
@@ -26,3 +28,5 @@ class Logger {
  private:
   Logger() = default;
 };
+
+}  // namespace

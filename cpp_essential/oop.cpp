@@ -3,6 +3,8 @@
 #include <memory>
 #include <vector>
 
+namespace OOP {
+
 //////////////////////////////////////////////////////////////
 // Real-world pitfalls shown below
 // ❌ forgetting virtual destructor → UB
@@ -247,7 +249,7 @@ void goodUse(const Item& item) {
 // Main
 //////////////////////////////////////////////////////////////
 
-int run_oop_test() {
+int run() {
   std::cout << "\n--- Create Inventory ---\n";
   Inventory inv;
 
@@ -277,3 +279,5 @@ int run_oop_test() {
 
   std::cout << "\n--- End ---\n";
 }
+
+}  // namespace OOP

@@ -6,6 +6,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "memory_management.cpp"
 #include "oop.cpp"
 #include "singleton.cpp"
 
@@ -71,7 +72,12 @@ int main() {
   // test_decltype_auto();
   // test_perfect_forwarding();
   // test_if_constexpr();
-  run_oop_test();
+
+#if defined(TEST_OOP)
+  OOP::run();
+#elif defined(TEST_MM)
+  MM::run();
+#endif
 
   return 0;
 }
