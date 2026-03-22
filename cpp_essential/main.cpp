@@ -8,6 +8,7 @@
 
 #include "memory_management.cpp"
 #include "oop.cpp"
+#include "template_generic_programming.cpp"
 #include "singleton.cpp"
 
 using namespace std;
@@ -77,6 +78,8 @@ int main() {
   OOP::run();
 #elif defined(TEST_MM)
   MM::run();
+#elif defined(TEST_TP)
+  TP::run();
 #endif
 
   return 0;
