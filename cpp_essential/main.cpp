@@ -37,7 +37,6 @@ void test_class_template();
 void test_nttp();
 void test_crtp();
 void test_concept();
-void test_sfinae();
 void test_decltype_auto();
 void test_perfect_forwarding();
 void test_if_constexpr();
@@ -65,7 +64,6 @@ int main() {
   // test_nttp();
   // test_crtp();
   // test_concept();
-  // test_sfinae();
   // test_decltype_auto();
   // test_perfect_forwarding();
   // test_if_constexpr();
@@ -1106,65 +1104,6 @@ void test_concept() {
   Range<int> r(10, 20);
   cout << boolalpha;
   cout << r.contains(15) << endl;
-}
-
-// -----------
-// SFINAE
-// -----------
-template <typename T>
-typename std::enable_if<std::is_integral<T>::value, T>::type increment(
-    T value) {
-  cout << "Integral verison called\n";
-  return value + 1;
-}
-
-template <typename T>
-typename std::enable_if<std::is_floating_point<T>::value, T>::type increment(
-    T value) {
-  cout << "Floating-point version called\n";
-  return value + 0.5;
-}
-
-template <typename, typename = void>
-struct has_size_method : std::false_type {};
-
-template <typename T>
-struct has_size_method<T, std::void_t<decltype(std::declval<T>().size())>>
-    : std::true_type {};
-
-template <typename T>
-auto print_type2(const T &value) ->
-    typename enable_if<is_integral<T>::value>::type {
-  cout << "Integral type: " << value << endl;
-}
-
-template <typename T>
-auto print_type2(const T &value) ->
-    typename enable_if<is_floating_point<T>::value>::type {
-  cout << "Floating-point type: " << value << endl;
-}
-
-template <typename T>
-auto print_type2(const T &value) ->
-    typename enable_if<!is_arithmetic<T>::value>::type {
-  cout << "Other type: " << value << endl;
-}
-
-void test_sfinae() {
-  cout << "=== Basic ===\n";
-  cout << increment(10) << endl;
-  cout << increment(10.0) << endl;
-
-  cout << "=== Detect if a class has a member function ===\n";
-  cout << boolalpha;
-  cout << has_size_method<int>::value << endl;
-  cout << has_size_method<vector<int>>::value << endl;
-  cout << has_size_method<string>::value << endl;
-
-  cout << "=== Function overloading with SFINAE\n";
-  print_type2(42);
-  print_type2(3.14);
-  print_type2("Hello world");
 }
 
 // -----------

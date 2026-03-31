@@ -1,5 +1,7 @@
 #include <iostream>
 #include <stdexcept>
+#include <string>
+#include <type_traits>
 
 namespace TP {
 
@@ -213,8 +215,15 @@ auto add(T a, U b) -> decltype(a + b) {
 // ------------
 // enable_if
 // ------------
-// Conditionally enables functions/types at compile time.
 // c++ 11
+//
+// Conditionally enables functions/types at compile time.
+// Give me type "T" ONLY if "T" is integral, otherwise function disappears
+// (SFINAE)
+// std::is_integral<T>::value -> true/false
+// std::enable_if<cond, T>    -> gives type ONLY if cond == true
+// ::type                     -> extract the type
+// typename                   -> tell compiler it's a type
 template <typename T>
 typename std::enable_if<std::is_integral<T>::value, T>::type square(T x) {
   return x * x;
@@ -227,6 +236,71 @@ std::enable_if_t<std::is_integral<T>::value, T> square(T x) {
   return x * x;
 }
 */
+
+// ------------
+// SFINAE
+// ------------
+//
+// Substitution Failure Is Not An Error
+// If template substitution fails -> compiler ignores that candidate
+//
+// Template substitution = the compiler replacing template parameters with
+// actual types/values and checking if the resulting code is valid.
+template <typename T>
+typename std::enable_if<std::is_integral<T>::value, T>::type increment(
+    T value) {
+  std::cout << "Integral verison called\n";
+  return value + 1;
+}
+
+template <typename T>
+typename std::enable_if<std::is_floating_point<T>::value, T>::type increment(
+    T value) {
+  std::cout << "Floating-point version called\n";
+  return value + 0.5;
+}
+
+template <typename, typename = void>
+struct has_size_method : std::false_type {};
+
+template <typename T>
+struct has_size_method<T, std::void_t<decltype(std::declval<T>().size())>>
+    : std::true_type {};
+
+template <typename T>
+auto print_type2(const T& value) ->
+    typename std::enable_if<std::is_integral<T>::value>::type {
+  std::cout << "Integral type: " << value << "\n";
+}
+
+template <typename T>
+auto print_type2(const T& value) ->
+    typename std::enable_if<std::is_floating_point<T>::value>::type {
+  std::cout << "Floating-point type: " << value << "\n";
+}
+
+template <typename T>
+auto print_type2(const T& value) ->
+    typename std::enable_if<!std::is_arithmetic<T>::value>::type {
+  std::cout << "Other type: " << value << "\n";
+}
+
+void test_sfinae() {
+  std::cout << "--- Basic ---\n";
+  std::cout << increment(10) << "\n";
+  std::cout << increment(10.0) << "\n";
+
+  std::cout << "--- Detect if a class has a member function ---\n";
+  std::cout << std::boolalpha;
+  std::cout << has_size_method<int>::value << "\n";
+  std::cout << has_size_method<std::vector<int>>::value << "\n";
+  std::cout << has_size_method<std::string>::value << "\n";
+
+  std::cout << "--- Function overloading with SFINAE ---\n";
+  print_type2(42);
+  print_type2(3.14);
+  print_type2("Hello world");
+}
 
 // ------------
 // run tests
@@ -275,6 +349,9 @@ int run() {
   std::cout << "=== enable_if ===\n";
   std::cout << "5*5=" << square(5) << "\n";
   // square(3.14); // ERROR
+
+  std::cout << "=== SFINAE ===\n";
+  test_sfinae();
 
   return 0;
 }
