@@ -36,7 +36,6 @@ void test_function_template();
 void test_class_template();
 void test_nttp();
 void test_crtp();
-void test_concept();
 void test_decltype_auto();
 void test_perfect_forwarding();
 void test_if_constexpr();
@@ -63,7 +62,6 @@ int main() {
   // test_class_template();
   // test_nttp();
   // test_crtp();
-  // test_concept();
   // test_decltype_auto();
   // test_perfect_forwarding();
   // test_if_constexpr();
@@ -1030,12 +1028,6 @@ void test_crtp() {
 // -----------
 // Concept
 // -----------
-template <typename T>
-  requires std::integral<T>
-T multiply_by_two(T x) {
-  return x * 2;
-}
-
 // A concept that requires type T to support operator+
 // C++20
 /*
@@ -1049,62 +1041,6 @@ T add_concept(T a, T b) {
   return a + b;
 }
 */
-
-template <std::integral T>
-void print_type(T) {
-  cout << "Integral type\n";
-}
-
-template <std::floating_point T>
-void print_type(T) {
-  cout << "Floating-point type\n";
-}
-
-template <typename T>
-  requires std::integral<T> || std::floating_point<T>
-T square_concept(T x) {
-  return x * x;
-}
-
-auto add_concept(std::integral auto a, std::integral auto b) { return a + b; }
-
-template <std::totally_ordered T>
-class Range {
-  T low, high;
-
- public:
-  Range(T l, T h) : low(l), high(h) {}
-  bool contains(const T &x) const { return x >= low && x <= high; }
-};
-
-void test_concept() {
-  cout << "=== Basic ===\n";
-  cout << multiply_by_two(21) << endl;
-  // cout << multiply_by_two(3.14) << endl; // compile error (not integral)
-
-  /*
-  cout << "=== Define your own concept ===\n";
-  cout << add_concept(3, 5) << endl;
-  cout << add_concept(3.1, 5.2) << endl;
-  */
-
-  cout << "=== Use concept as function overload selector ===\n";
-  print_type(42);
-  print_type(4.2);
-
-  cout << "=== Combining multiple constraints ===\n";
-  cout << square_concept(5) << endl;
-  cout << square_concept(5.5) << endl;
-
-  cout << "=== Abbreviated function templates ===\n";
-  cout << add_concept(10, 20) << endl;
-  // cout << add_concept(10.1, 20.2) << endl; // compile error
-
-  cout << "=== Use concept in classes ===\n";
-  Range<int> r(10, 20);
-  cout << boolalpha;
-  cout << r.contains(15) << endl;
-}
 
 // -----------
 // decltype/auto

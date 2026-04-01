@@ -1,3 +1,4 @@
+#include <concepts>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -215,15 +216,25 @@ auto add(T a, U b) -> decltype(a + b) {
 // ------------
 // enable_if
 // ------------
-// c++ 11
 //
 // Conditionally enables functions/types at compile time.
+//
 // Give me type "T" ONLY if "T" is integral, otherwise function disappears
-// (SFINAE)
-// std::is_integral<T>::value -> true/false
-// std::enable_if<cond, T>    -> gives type ONLY if cond == true
-// ::type                     -> extract the type
-// typename                   -> tell compiler it's a type
+//   std::is_integral<T>::value -> true/false
+//   std::enable_if<cond, T>    -> gives type ONLY if cond == true
+//   ::type                     -> extract the type
+//   typename                   -> tell compiler it's a type
+//
+// Implementation:
+//   template<bool, typename T>
+//   struct enable_if {};
+//
+//   template<true, typename T>
+//   struct enable_if<true, T> {
+//     typedef T type;
+//   };
+//
+// c++ 11
 template <typename T>
 typename std::enable_if<std::is_integral<T>::value, T>::type square(T x) {
   return x * x;
@@ -302,6 +313,71 @@ void test_sfinae() {
   print_type2("Hello world");
 }
 
+// -----------
+// requires clause
+// -----------
+template <typename T>
+  requires std::integral<T>
+T multiply_by_two(T x) {
+  return x * 2;
+}
+
+template <std::integral T>
+void print_type(T) {
+  std::cout << "Integral type\n";
+}
+
+template <std::floating_point T>
+void print_type(T) {
+  std::cout << "Floating-point type\n";
+}
+
+template <typename T>
+  requires std::integral<T> || std::floating_point<T>
+T square2(T x) {
+  return x * x;
+}
+
+auto add2(std::integral auto a, std::integral auto b) { return a + b; }
+
+template <std::totally_ordered T>
+class Range {
+  T low, high;
+
+ public:
+  Range(T l, T h) : low(l), high(h) {}
+  bool contains(const T& x) const { return x >= low && x <= high; }
+};
+
+void test_requires_clause() {
+  std::cout << "--- Basic ---\n";
+  std::cout << multiply_by_two(21) << "\n";
+  // std::cout << multiply_by_two(3.14) << "\n"; // compile error (not integral)
+
+  /*
+  std::cout << "=== Define your own concept ===\n";
+  std::cout << add2(3, 5) << "\n";
+  std::cout << add2(3.1, 5.2) << "\n";
+  */
+
+  std::cout << "--- Use concept as function overload selector ---\n";
+  print_type(42);
+  print_type(4.2);
+
+  std::cout << "--- Combining multiple constraints ---\n";
+  std::cout << square2(5) << "\n";
+  std::cout << square2(5.5) << "\n";
+
+  std::cout << "--- Abbreviated function templates ---n";
+  std::cout << add2(10, 20) << "\n";
+  // std::cout << add2(10.1, 20.2) << "\n"; // compile error
+
+  std::cout << "--- Use concept in classes ---\n";
+  Range<int> r(10, 20);
+  std::cout << std::boolalpha;
+  std::cout << r.contains(15) << "\n";
+}
+
 // ------------
 // run tests
 // ------------
@@ -352,6 +428,9 @@ int run() {
 
   std::cout << "=== SFINAE ===\n";
   test_sfinae();
+
+  std::cout << "=== requires clause ===\n";
+  test_requires_clause();
 
   return 0;
 }
