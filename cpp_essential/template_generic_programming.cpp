@@ -381,6 +381,11 @@ void test_requires_clause() {
 // -----------
 // CRTP (Curiously Recurring Template Pattern)
 // -----------
+//
+// A class inherits from a template instantiated with itself.
+//   - No virtual overhead
+//   - Compile-time polymorphism
+//
 // Logging mixin
 template <typename Derived>
 class Logger {
