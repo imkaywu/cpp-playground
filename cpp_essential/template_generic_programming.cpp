@@ -378,6 +378,104 @@ void test_requires_clause() {
   std::cout << r.contains(15) << "\n";
 }
 
+// -----------
+// CRTP (Curiously Recurring Template Pattern)
+// -----------
+// Logging mixin
+template <typename Derived>
+class Logger {
+ public:
+  Logger() {
+    std::cout << "Creating " << static_cast<Derived *>(this)->to_string()
+              << "\n";
+  }
+
+  ~Logger() {
+    std::cout << "Destroying " << static_cast<Derived *>(this)->to_string()
+              << "\n";
+  }
+};
+
+// Counter mixin
+template <typename Derived>
+class Counter {
+ private:
+  static int count;
+
+ public:
+  Counter() { ++count; }
+  Counter(const Counter &) { ++count; }
+  Counter(Counter &&) noexcept { ++count; }
+  Counter &operator=(const Counter &other) { ++count; }
+  ~Counter() { --count; }
+  static int get_count() { return count; }
+};
+
+template <typename Derived>
+int Counter<Derived>::count = 0;
+
+// Addable mixin
+template <typename Derived>
+class Addable {
+ public:
+  Derived operator+(const Derived &other) const {
+    Derived result = static_cast<const Derived &>(*this);
+    result += other;
+    return result;
+  }
+};
+
+// Base CRTP class combining everything
+template <typename Derived>
+class Entity : public Logger<Derived>,
+               public Counter<Derived>,
+               public Addable<Derived> {
+ public:
+  void print() const {
+    std::cout << static_cast<const Derived *>(this)->to_string() << "\n";
+  }
+};
+
+// Derived class
+class Money : public Entity<Money> {
+ public:
+  int value;
+
+  Money(int v = 0) : value(v) {}
+
+  // Required by Addable mixin
+  Money operator+(const Money &other) {
+    Money res = static_cast<const Money &>(*this);
+    res.value += other.value;
+    return res;
+  }
+
+  // Required by Logger mixin
+  std::string to_string() const {
+    return "Money (" + std::to_string(value) + ")";
+  }
+};
+
+void test_crtp() {
+  Money m1(30);
+  Money m2(50);
+
+  Money m3 = m1 + m2;  // call operator+ to create a temp Money instance, then
+                       // copied to m3
+  m3.print();
+
+  std::cout << "Money instances: " << Money::get_count() << "\n";
+
+  {
+    Money m4(100);
+    std::cout << "Money instances (inside block): " << Money::get_count()
+              << "\n";
+  }
+
+  std::cout << "Money instances (outside block): " << Money::get_count()
+            << "\n";
+}
+
 // ------------
 // run tests
 // ------------
@@ -431,6 +529,9 @@ int run() {
 
   std::cout << "=== requires clause ===\n";
   test_requires_clause();
+
+  std::cout << "=== CRTP (Curiously Recurring Template Pattern) ===\n";
+  test_crtp();
 
   return 0;
 }
