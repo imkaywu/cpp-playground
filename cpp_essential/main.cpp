@@ -32,8 +32,6 @@ void test_singleton();
 void test_oop();
 void test_multi_inheritance();
 void test_base_class_init();
-void test_function_template();
-void test_class_template();
 void test_nttp();
 void test_decltype_auto();
 void test_perfect_forwarding();
@@ -57,8 +55,6 @@ int main() {
   // test_oop();
   // test_multi_inheritance();
   // test_base_class_init();
-  // test_function_template();
-  // test_class_template();
   // test_nttp();
   // test_decltype_auto();
   // test_perfect_forwarding();
@@ -770,112 +766,6 @@ void test_base_class_init() { Derived2 d(1, 2); }
 // RTTI: Run-Time Type Info. Metadata for runtime type checking.
 //       only available when base class has virtual function(s)
 //       vptr → vtable → RTTI descriptor
-
-// -----------
-// function template
-// -----------
-template <typename T>
-T addTwo(T a, T b) {
-  cout << "[Template] addTwo(T,T) called\n";
-  return a + b;
-}
-
-int addTwo(int a, int b) {
-  cout << "[Overload] addTwo(T,T) called\n";
-  return a + b;
-}
-
-template <typename T, typename U>
-auto multiply(T a, U b) {
-  cout << "[Template] multiply(T,U) called\n";
-  return a * b;
-}
-
-// Template Specialization: specialize (customize) the template's behavior for
-// particular template arguments.
-template <>
-string addTwo<string>(string a, string b) {
-  cout << "[Specialization] addTwo<string>(string,string) called\n";
-  return a + " & " + b;
-}
-
-template <typename T>
-  requires integral<T>
-T square(T x) {
-  cout << "[Constained] square(T) where T is integral\n";
-  return x * x;
-}
-
-void test_function_template() {
-  cout << "=== Function Template Basics ===\n";
-  cout << addTwo(3, 4) << endl
-       << addTwo(2.5, 4.1) << endl
-       << addTwo(string("Hi"), string("Bob")) << endl;
-
-  cout << "=== Multiple Type Parameters ===\n";
-  cout << multiply(3, 4.5) << endl;
-
-  cout << "=== constrained template ===\n";
-  cout << square(5) << endl;
-  // cout << square(5.5) << endl; // compiler error: not integral
-
-  cout << "=== Explicit Template Arguments ===\n";
-  cout << addTwo<int>(10.5, 20.9) << endl;
-}
-
-// -----------
-// class template
-// -----------
-template <typename T>
-class Box {
- protected:
-  T value;
-
- public:
-  Box(T v) : value(v){};
-  T get() const { return value; }
-  void set(T v) { value = v; }
-};
-
-template <typename T>
-class SafeBox : public Box<T> {
-  bool locked;
-
- public:
-  SafeBox(T v) : Box<T>(v), locked(true) {}
-
-  void lock() { locked = true; }
-  void unlock() { locked = false; }
-
-  T get_value() const {
-    if (locked) {
-      throw runtime_error("Box is locked");
-    }
-    return this->value;
-  }
-};
-
-template <>
-class SafeBox<string> : public Box<string> {
- public:
-  SafeBox(string v) : Box<string>("Encrypted: " + v) {}
-  string get_value() const { return this->value; }
-};
-
-void test_class_template() {
-  SafeBox<int> safe_box_int(42);
-  try {
-    cout << safe_box_int.get_value() << endl;
-  } catch (const exception &e) {
-    cout << e.what() << endl;
-  }
-
-  safe_box_int.unlock();
-  cout << safe_box_int.get_value() << endl;
-
-  SafeBox<string> safe_box_str("secret");
-  cout << safe_box_str.get_value() << endl;
-}
 
 // -----------
 // Non-Type Template Parameter

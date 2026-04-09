@@ -9,11 +9,51 @@ namespace TP {
 // ------------
 // Function templates
 // ------------
+
+template <typename T>
+T add(T a, T b) {
+  std::cout << "[Template] add(T,T) called\n";
+  return a + b;
+}
+
+int add(int a, int b) {
+  std::cout << "[Overload] add(T,T) called\n";
+  return a + b;
+}
+
+// Template Specialization: specialize (customize) the template's behavior for
+// particular template arguments.
+template <>
+std::string add<std::string>(std::string a, std::string b) {
+  std::cout << "[Specialization] add<string>(string,string) called\n";
+  return a + " & " + b;
+}
+
+template <typename T, typename U>
+auto multiply(T a, U b) {
+  std::cout << "[Template] multiply(T,U) called\n";
+  return a * b;
+}
+
 template <typename T, typename U>
 T clamp(T value, U low, U high) {
   using Common = decltype(value + low);
 
   return value < low ? low : (value > high ? high : value);
+}
+
+void test_function_template() {
+  std::cout << "--- Function Template Basics ---n";
+  std::cout << add(3, 4) << "\n"
+            << add(2.5, 4.1) << "\n"
+            << add(std::string("Hi"), std::string("Bob")) << "\n";
+
+  std::cout << "--- Explicit Template Arguments ---n";
+  std::cout << add<int>(10.5, 20.9) << "\n";
+
+  std::cout << "--- Multiple Type Parameters ---n";
+  std::cout << multiply(3, 4.5) << "\n";
+  std::cout << clamp(1, 0.0, 2.0) << "\n";
 }
 
 // ------------
@@ -22,7 +62,7 @@ T clamp(T value, U low, U high) {
 template <typename T>
 class SimpleVector {
  private:
-  T* data;
+  T *data;
   size_t size;
   size_t capacity;
 
@@ -31,10 +71,10 @@ class SimpleVector {
 
   ~SimpleVector() { delete[] data; }
 
-  void push_back(const T& value) {
+  void push_back(const T &value) {
     if (size == capacity) {
       capacity = capacity == 0 ? 1 : capacity * 2;
-      T* new_data = new T[capacity];
+      T *new_data = new T[capacity];
 
       for (size_t i = 0; i < size; ++i) {
         new_data[i] = data[i];
@@ -47,7 +87,7 @@ class SimpleVector {
     data[size++] = value;
   }
 
-  T& operator[](size_t index) {
+  T &operator[](size_t index) {
     if (index >= size) throw std::out_of_range("Index out of range");
 
     return data[index];
@@ -56,13 +96,73 @@ class SimpleVector {
   size_t get_size() const { return size; }
 };
 
+template <typename T>
+class Box {
+ protected:
+  T value;
+
+ public:
+  Box(T v) : value(v){};
+  T get() const { return value; }
+  void set(T v) { value = v; }
+};
+
+template <typename T>
+class SafeBox : public Box<T> {
+  bool locked;
+
+ public:
+  SafeBox(T v) : Box<T>(v), locked(true) {}
+
+  void lock() { locked = true; }
+  void unlock() { locked = false; }
+
+  T get_value() const {
+    if (locked) {
+      throw std::runtime_error("Box is locked");
+    }
+    return this->value;
+  }
+};
+
+template <>
+class SafeBox<std::string> : public Box<std::string> {
+ public:
+  SafeBox(std::string v) : Box<std::string>("Encrypted: " + v) {}
+  std::string get_value() const { return this->value; }
+};
+
+void test_class_template() {
+  SimpleVector<int> v;
+  v.push_back(10);
+  v.push_back(20);
+  std::cout << v[1] << "\n";
+
+  SimpleVector<std::string> vs;
+  vs.push_back("hello");
+  std::cout << vs[0] << "\n";
+
+  SafeBox<int> safe_box_int(42);
+  try {
+    std::cout << safe_box_int.get_value() << "\n";
+  } catch (const std::exception &e) {
+    std::cout << e.what() << "\n";
+  }
+
+  safe_box_int.unlock();
+  std::cout << safe_box_int.get_value() << "\n";
+
+  SafeBox<std::string> safe_box_str("secret");
+  std::cout << safe_box_str.get_value() << "\n";
+}
+
 // ------------
 // Template specialization
 // ------------
 template <typename T>
 class Printer {
  public:
-  static void print(const T& value) { std::cout << value << "\n"; }
+  static void print(const T &value) { std::cout << value << "\n"; }
 };
 
 // Full specialization for bool
@@ -83,7 +183,7 @@ struct IsPointer {
 };
 
 template <typename T>
-struct IsPointer<T*> {
+struct IsPointer<T *> {
   static constexpr bool value = true;
 };
 
@@ -146,7 +246,7 @@ void count_args(Args... args) {
 }
 
 template <typename T, typename... Args>
-std::unique_ptr<T> make_unique_custom(Args&&... args) {
+std::unique_ptr<T> make_unique_custom(Args &&...args) {
   return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
 
@@ -197,7 +297,7 @@ void test_variadic_templates() {
 //   f(1);  // T = int
 
 template <typename T>
-void inspect(T&& p) {
+void inspect(T &&p) {
   if constexpr (std::is_lvalue_reference<T>::value) {
     std::cout << "T is lvalue reference\n";
   } else {
@@ -279,19 +379,19 @@ struct has_size_method<T, std::void_t<decltype(std::declval<T>().size())>>
     : std::true_type {};
 
 template <typename T>
-auto print_type2(const T& value) ->
+auto print_type2(const T &value) ->
     typename std::enable_if<std::is_integral<T>::value>::type {
   std::cout << "Integral type: " << value << "\n";
 }
 
 template <typename T>
-auto print_type2(const T& value) ->
+auto print_type2(const T &value) ->
     typename std::enable_if<std::is_floating_point<T>::value>::type {
   std::cout << "Floating-point type: " << value << "\n";
 }
 
 template <typename T>
-auto print_type2(const T& value) ->
+auto print_type2(const T &value) ->
     typename std::enable_if<!std::is_arithmetic<T>::value>::type {
   std::cout << "Other type: " << value << "\n";
 }
@@ -346,7 +446,7 @@ class Range {
 
  public:
   Range(T l, T h) : low(l), high(h) {}
-  bool contains(const T& x) const { return x >= low && x <= high; }
+  bool contains(const T &x) const { return x >= low && x <= high; }
 };
 
 void test_requires_clause() {
@@ -380,6 +480,7 @@ void test_requires_clause() {
 
 // -----------
 // CRTP (Curiously Recurring Template Pattern)
+// https://eli.thegreenplace.net/2011/05/17/the-curiously-recurring-template-pattern-in-c/
 // -----------
 //
 // A class inherits from a template instantiated with itself.
@@ -482,21 +583,53 @@ void test_crtp() {
 }
 
 // ------------
+// Template Metaprogramming Basics
+// ------------
+//
+// Compute values/types at compile time
+
+template <int N>
+struct Factorial {
+  static constexpr int value = N * Factorial<N - 1>::value;
+};
+
+template <>
+struct Factorial<0> {
+  static constexpr int value = 1;
+};
+
+// ------------
+// Fold Expressions
+// ------------
+// Reduce a parameter pack into a single value, simplify variadic templates.
+
+template <typename... Args>
+auto sum(Args... args) {
+  return (args + ...);
+}
+
+// ------------
+// Type Traits
+// ------------
+
+template <typename T>
+void check() {
+  if constexpr (std::is_pointer_v<T>) {
+    std::cout << "Pointer\n";
+  } else {
+    std::cout << "Not pointer\n";
+  }
+}
+
+// ------------
 // run tests
 // ------------
 int run() {
   std::cout << "=== Function templates ===\n";
-  std::cout << clamp(1, 0.0, 2.0) << "\n";
+  test_function_template();
 
   std::cout << "=== Class templates ===\n";
-  SimpleVector<int> v;
-  v.push_back(10);
-  v.push_back(20);
-  std::cout << v[1] << "\n";
-
-  SimpleVector<std::string> vs;
-  vs.push_back("hello");
-  std::cout << vs[0] << "\n";
+  test_class_template();
 
   std::cout << "=== Template specialization ===\n";
   Printer<int>::print(10);
@@ -504,7 +637,7 @@ int run() {
 
   std::cout << "=== Partial specialization ===\n";
   std::cout << IsPointer<int>::value << "\n";
-  std::cout << IsPointer<int*>::value << "\n";
+  std::cout << IsPointer<int *>::value << "\n";
 
   Pair<int, double> p1;
   Pair<int, int> p2;
@@ -537,6 +670,16 @@ int run() {
 
   std::cout << "=== CRTP (Curiously Recurring Template Pattern) ===\n";
   test_crtp();
+
+  std::cout << "=== Template Metaprogramming Basic ===\n";
+  std::cout << "5! = " << Factorial<5>::value << "\n";
+
+  std::cout << "=== Fold Expressions ===\n";
+  std::cout << "1+2+3+4=" << sum(1, 2, 3, 4) << "\n";
+
+  std::cout << "=== Type Trait ===\n";
+  check<int>();
+  check<int *>();
 
   return 0;
 }
