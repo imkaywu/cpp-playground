@@ -6,6 +6,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "concurrency_and_parallelism.cpp"
 #include "memory_management.cpp"
 #include "oop.cpp"
 #include "singleton.cpp"
@@ -66,6 +67,8 @@ int main() {
   MM::run();
 #elif defined(TEST_TP)
   TP::run();
+#elif defined(TEST_MT)
+  MT::run();
 #endif
 
   return 0;
