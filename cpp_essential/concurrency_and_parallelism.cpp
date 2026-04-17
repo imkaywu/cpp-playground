@@ -1,5 +1,7 @@
 #include <chrono>
 #include <iostream>
+#include <mutex>
+#include <shared_mutex>
 #include <thread>
 
 namespace MT {
@@ -105,10 +107,87 @@ int test_thread() {
 // ------------
 // Mutex
 // ------------
-
+// +
 // ------------
 // Lock guards
 // ------------
+
+// Global shared state
+int shared_data = 0;
+
+std::mutex mtx;
+// same thread can lock it multiple times (used in recursion)
+std::recursive_mutex re_mtx;
+// allows multiple readers, but a single writer to hold it
+std::shared_mutex rw_mtx;
+
+// 1. mutex + lock_guard
+// lock_guard: RAII wrapper for mutex, auto unlock at scope exit
+void increment_with_mutex() {
+  std::lock_guard<std::mutex> lock(mtx);
+  shared_data++;
+  std::cout << "[increment_with_mutex] shared data: " << shared_data << "\n";
+}
+
+// 2. recursive_mutex
+void recursive_func(int n) {
+  if (n <= 0) return;
+  re_mtx.lock();
+  std::cout << "re_mtx depth: " << n << "\n";
+  recursive_func(n - 1);
+  re_mtx.unlock();
+}
+
+// 3. shared_mutex
+void reader(int id) {
+  std::shared_lock<std::shared_mutex> lock(rw_mtx);
+  std::cout << "Reader " << id << " reads shared_data = " << shared_data
+            << "\n";
+}
+
+void writer(int id) {
+  std::unique_lock<std::shared_mutex> lock(rw_mtx);
+  shared_data++;
+  std::cout << "Writer " << id << " updates shared_data = " << shared_data
+            << "\n";
+}
+
+// 4. unique_lock + defer/adopt/try_lock
+// unique_lock: more flexible lock
+void unique_lock_example() {
+  std::unique_lock<std::mutex> lock(mtx, std::defer_lock);  // not locked yet
+  // try_lock: non-blocking
+  if (lock.try_lock()) {
+    std::cout << "unique_lock acquired using try_lock()\n";
+  }
+  lock.unlock();
+
+  mtx.lock();
+  std::unique_lock<std::mutex> adopted_lock(mtx, std::adopt_lock);
+  std::cout << "unique_lock adopted existing lock\n";
+  // lock auto-unlocked when goes out of scope
+}
+
+int test_mutex_and_lock_guard() {
+  std::cout << "--- 1. Basic mutex and lock_guard ---\n";
+  std::thread t1(increment_with_mutex);
+  std::thread t2(increment_with_mutex);
+  t1.join();
+  t2.join();
+
+  std::cout << "--- 2. recursive_mutex ---\n";
+  recursive_func(3);
+
+  std::cout << "--- 3. shared_mutex (readers/writers) ---\n";
+  std::vector<std::thread> readers, writers;
+  for (int i = 0; i < 3; ++i) readers.emplace_back(reader, i);
+  for (int i = 0; i < 2; ++i) writers.emplace_back(writer, i);
+  for (auto &t : readers) t.join();
+  for (auto &t : writers) t.join();
+
+  std::cout << "--- 4. unique_lock ---\n";
+  unique_lock_example();
+}
 
 // ------------
 // Condition variable
@@ -117,6 +196,9 @@ int test_thread() {
 int run() {
   std::cout << "=== Thread ===\n";
   test_thread();
+
+  std::cout << "=== Mutex & Lock guard ===\n";
+  test_mutex_and_lock_guard();
 
   return 0;
 }
