@@ -33,5 +33,10 @@ void function_2() {
 }
 
 int main() {
+  std::thread t1(function_1);
+  std::thread t2(function_2);
+  t1.join();
+  t2.join();
+
   return 0;
 }

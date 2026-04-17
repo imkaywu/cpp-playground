@@ -1,4 +1,5 @@
 #include <chrono>
+#include <condition_variable>
 #include <iostream>
 #include <mutex>
 #include <shared_mutex>
@@ -193,12 +194,72 @@ int test_mutex_and_lock_guard() {
 // Condition variable
 // ------------
 
+std::condition_variable cv;
+bool ready = false;
+
+// condition_variable (wait/notify)
+void notifier() {
+  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+  {
+    std::lock_guard<std::mutex> lock(mtx);
+    ready = true;
+    std::cout << "Notifier: setting ready = true\n";
+  }
+  cv.notify_one();  // wake up one waiting thread
+}
+
+void worker_wait() {
+  std::unique_lock<std::mutex> lock(mtx);
+  std::cout << "Worker waiting...\n";
+  // cv.wait(lock, predicate): put thread to sleep until predicate is true
+  cv.wait(lock, [] { return ready; });  // waits until ready==true
+  std::cout << "Workder proceeds\n";
+}
+
+std::deque<int> q;
+std::condition_variable cond;
+
+void produce() {
+  int count = 10;
+  while (count > 0) {
+    std::unique_lock<std::mutex> locker(mtx);
+    q.push_front(count);
+    locker.unlock();
+    cond.notify_one();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    count--;
+  }
+}
+
+void consume() {
+  int data = 0;
+  while (data != 1) {
+    std::unique_lock<std::mutex> locker(mtx);
+    cond.wait(locker, []() { return !q.empty(); });
+    data = q.back();
+    q.pop_back();
+    locker.unlock();
+    std::cout << "[consumer] queue value: " << data << "\n";
+  }
+}
+
 int run() {
   std::cout << "=== Thread ===\n";
   test_thread();
 
   std::cout << "=== Mutex & Lock guard ===\n";
   test_mutex_and_lock_guard();
+
+  std::cout << "=== Condition variable ===\n";
+  std::thread waiter(worker_wait);
+  std::thread signaler(notifier);
+  waiter.join();
+  signaler.join();
+
+  std::thread producer(produce);
+  std::thread consumer(consume);
+  producer.join();
+  consumer.join();
 
   return 0;
 }
