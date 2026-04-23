@@ -243,6 +243,61 @@ void consume() {
   }
 }
 
+// ------------
+// Deadlock
+// ------------
+// How to avoid:
+// 1. prefer locking a single mutex at a time
+// 2. Avoid locking a mutex and calling a user-defined method
+// 3. Lock mutexes in the same order
+// 4. Use std::lock to lock multiple mutexes
+
+std::mutex m1, m2, m3, m4;
+
+void t1() {
+  std::lock_guard<std::mutex> l1(m1);
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  std::lock_guard<std::mutex> l2(m2);
+
+  std::cout << "t1 done\n";
+}
+
+void t2() {
+  std::lock_guard<std::mutex> l1(m2);
+  std::lock_guard<std::mutex> l2(m1);
+
+  std::cout << "t2 done\n";
+}
+
+void safe_t1() {
+  std::lock(m3, m4);
+  std::lock_guard<std::mutex> l1(m3, std::adopt_lock);
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  std::lock_guard<std::mutex> l2(m4, std::adopt_lock);
+
+  std::cout << "safe t1 done\n";
+}
+
+void safe_t2() {
+  std::lock(m3, m4);
+  std::lock_guard<std::mutex> l1(m3, std::adopt_lock);
+  std::lock_guard<std::mutex> l2(m4, std::adopt_lock);
+
+  std::cout << "safe t2 done\n";
+}
+
+int test_deadlock() {
+  std::thread a(t1);
+  std::thread b(t2);
+  std::thread a2(safe_t1);
+  std::thread b2(safe_t2);
+
+  a2.join();
+  b2.join();
+  a.join();
+  b.join();  // deadlock risk
+}
+
 int run() {
   std::cout << "=== Thread ===\n";
   test_thread();
@@ -260,6 +315,9 @@ int run() {
   std::thread consumer(consume);
   producer.join();
   consumer.join();
+
+  std::cout << "=== Deadlock ===\n";
+  test_deadlock();
 
   return 0;
 }
