@@ -169,7 +169,7 @@ void unique_lock_example() {
   // lock auto-unlocked when goes out of scope
 }
 
-int test_mutex_and_lock_guard() {
+void test_mutex_and_lock_guard() {
   std::cout << "--- 1. Basic mutex and lock_guard ---\n";
   std::thread t1(increment_with_mutex);
   std::thread t2(increment_with_mutex);
@@ -286,16 +286,206 @@ void safe_t2() {
   std::cout << "safe t2 done\n";
 }
 
-int test_deadlock() {
-  std::thread a(t1);
-  std::thread b(t2);
+void test_deadlock() {
+  // std::thread a(t1);
+  // std::thread b(t2);
   std::thread a2(safe_t1);
   std::thread b2(safe_t2);
 
   a2.join();
   b2.join();
-  a.join();
-  b.join();  // deadlock risk
+  // a.join();
+  // b.join();  // deadlock risk
+}
+
+// ------------
+// Atomic
+// ------------
+// +
+// ------------
+// Memory Order Model
+// ------------
+// https://www.ramtintjb.com/blog/memory-ordering
+
+std::atomic<int> counter{0};
+
+void increment2() {
+  for (int i = 0; i < 1000; ++i) {
+    counter.fetch_add(1, std::memory_order_relaxed);
+  }
+}
+
+/*
+struct Data { int value; };
+Data shared{0};
+*/
+
+std::atomic_flag atomic_flag_lock =
+    ATOMIC_FLAG_INIT;  // Always initializes to false
+
+void spinlock() {
+  // Atomically sets the flag to true and returns its previous value.
+  // - If the lock is acquired: by another thread, keeps spinning
+  // - If the lock is released: acquire the lock, set to true, return false
+  while (atomic_flag_lock.test_and_set(std::memory_order_acquire)) {
+    // busy-wait (spin)
+  }
+
+  std::cout << "Atomic flag lock acquired by thread"
+            << std::this_thread::get_id() << "\n";
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+  // Atomically sets the flag to false.
+  atomic_flag_lock.clear(std::memory_order_release);
+}
+
+std::atomic<int> d{0};
+std::atomic<bool> ready2{false};
+
+void writer2() {
+  d.store(42, std::memory_order_relaxed);
+  ready2.store(true, std::memory_order_release);  // publish
+}
+
+void reader2() {
+  while (!ready2.load(std::memory_order_acquire));  // spin until published
+  std::cout << "Read data = " << d.load(std::memory_order_relaxed) << "\n";
+}
+
+void spawn_threads(int num_threads) {
+  const int num_iters = 1 << 27;
+  const int elements_per_thread = num_iters / num_threads;
+
+  std::atomic<int> counter;
+
+  auto work = [&]() {
+    for (int i = 0; i < elements_per_thread; ++i) {
+      counter.fetch_add(1, std::memory_order_relaxed);
+    }
+  };
+
+  std::vector<std::thread> threads;
+  for (int i = 0; i < num_threads; ++i) {
+    threads.emplace_back(work);
+  }
+
+  for (int i = 0; i < num_threads; ++i) threads[i].join();
+}
+
+void spawn_threads2() {
+  const int num_iters = 1 << 27;
+  const int num_threads = 4;
+  const int elements_per_thread = num_iters / num_threads;
+
+  std::array<std::atomic<int>, 4> counters{0, 0, 0, 0};
+  std::atomic<int> total{0};
+
+  auto work = [&](int idx) {
+    for (int i = 0; i < elements_per_thread; ++i) {
+      counters[idx].fetch_add(1, std::memory_order_relaxed);
+    }
+    total += counters[idx];
+  };
+
+  std::vector<std::thread> threads;
+  for (int i = 0; i < num_threads; ++i) {
+    threads.emplace_back(work, i);
+  }
+
+  for (int i = 0; i < num_threads; ++i) threads[i].join();
+}
+
+struct AlignedAtomic {
+  alignas(64) std::atomic<int> counter;
+};
+
+void spawn_threads3() {
+  const int num_iters = 1 << 27;
+  const int num_threads = 4;
+  const int elements_per_thread = num_iters / num_threads;
+
+  std::array<AlignedAtomic, 4> counters;
+  std::atomic<int> total{0};
+
+  auto work = [&](int idx) {
+    for (int i = 0; i < elements_per_thread; ++i) {
+      counters[idx].counter.fetch_add(1, std::memory_order_relaxed);
+    }
+    total += counters[idx].counter;
+  };
+
+  std::vector<std::thread> threads;
+  for (int i = 0; i < num_threads; ++i) {
+    threads.emplace_back(work, i);
+  }
+
+  for (int i = 0; i < num_threads; ++i) threads[i].join();
+}
+
+void test_atomic_and_memory_order_model() {
+  std::cout << "--- atomic ---\n";
+  std::vector<std::thread> threads;
+  for (int i = 0; i < 10; ++i) threads.emplace_back(increment2);
+  for (auto &t : threads) t.join();
+  std::cout << "Final counter = " << counter << "\n";
+
+  /*
+  std::cout << "=== atomic view ===\n";
+  std::atomic_ref<int> atomic_view(shared.value);
+  std::atomic_view.store(42);
+  std::cout << shared.value << "\n";
+  */
+
+  std::cout << "--- atomic operations ---\n";
+  std::atomic<int> x{10};
+  int expected = 10;
+  bool ok = x.compare_exchange_weak(expected, 20);
+  std::cout << "Result: " << ok << ", x = " << x << "\n";
+
+  {
+    std::cout << "--- atomic_flag (spinlock) ---\n";
+    std::thread t1(spinlock);
+    std::thread t2(spinlock);
+    t1.join();
+    t2.join();
+  }
+
+  {
+    std::cout << "--- memory order ---\n";
+    std::thread t1(writer2);
+    std::thread t2(reader2);
+    t1.join();
+    t2.join();
+  }
+
+  std::cout << "--- false sharing and cacheline alignment ---\n";
+  auto start = std::chrono::high_resolution_clock::now();
+  spawn_threads(1);
+  auto end = std::chrono::high_resolution_clock::now();
+  std::cout << "serial, num_threads=1, num_counters=1, duration="
+            << std::chrono::duration<double, std::milli>(end - start).count()
+            << "ms\n";
+
+  start = std::chrono::high_resolution_clock::now();
+  spawn_threads(4);
+  end = std::chrono::high_resolution_clock::now();
+  std::cout << "direct sharing, num_threads=4, num_counters=1, duration="
+            << std::chrono::duration<double, std::milli>(end - start).count()
+            << "ms\n";
+
+  start = std::chrono::high_resolution_clock::now();
+  spawn_threads2();
+  end = std::chrono::high_resolution_clock::now();
+  std::cout << "false sharing, num_threads=4, num_counters=1, duration="
+            << std::chrono::duration<double, std::milli>(end - start).count()
+            << "ms\n";
+
+  start = std::chrono::high_resolution_clock::now();
+  spawn_threads3();
+  end = std::chrono::high_resolution_clock::now();
+  std::cout << "no sharing, num_threads=4, num_counters=1, duration="
+            << std::chrono::duration<double, std::milli>(end - start).count()
+            << "ms\n";
 }
 
 int run() {
@@ -318,6 +508,9 @@ int run() {
 
   std::cout << "=== Deadlock ===\n";
   test_deadlock();
+
+  std::cout << "=== Atomic and Memory Order Model ===\n";
+  test_atomic_and_memory_order_model();
 
   return 0;
 }
