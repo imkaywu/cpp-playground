@@ -1,5 +1,6 @@
 #include <chrono>
 #include <condition_variable>
+#include <future>
 #include <iostream>
 #include <mutex>
 #include <shared_mutex>
@@ -488,6 +489,54 @@ void test_atomic_and_memory_order_model() {
             << "ms\n";
 }
 
+// ------------
+// Futures & promises
+// ------------
+
+int compute_square(int x) {
+  std::cout << "Computing square of " << x << " in thread "
+            << std::this_thread::get_id() << ": ";
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+  return x * x;
+}
+
+void test_promise_and_future() {
+  std::promise<int> prom;
+  std::future<int> fut2 = prom.get_future();
+  std::thread t(
+      [&prom](int x) {
+        int val = compute_square(x);
+        prom.set_value(val);
+      },
+      6);
+  std::cout << "Result from promise: " << fut2.get() << "\n";
+  t.join();
+}
+
+// ------------
+// Async
+// ------------
+
+void test_async() {
+  std::future<int> fut1 = async(std::launch::async, compute_square, 5);
+  std::cout << "Async result: " << fut1.get() << "\n";
+
+  std::future<int> fut2 = async(std::launch::deferred, compute_square, 6);
+  std::cout << "Deferred result: " << fut2.get() << "\n";
+}
+
+// ------------
+// packaged_task
+// ------------
+
+void test_packaged_task() {
+  std::packaged_task<int(int)> task(compute_square);
+  std::future<int> fut3 = task.get_future();
+  std::thread t2(std::move(task), 7);  // run task in separate thread
+  std::cout << "Result from packaged_task: " << fut3.get() << "\n";
+  t2.join();
+}
+
 int run() {
   std::cout << "=== Thread ===\n";
   test_thread();
@@ -511,6 +560,15 @@ int run() {
 
   std::cout << "=== Atomic and Memory Order Model ===\n";
   test_atomic_and_memory_order_model();
+
+  std::cout << "=== Promise and Future ===\n";
+  test_promise_and_future();
+
+  std::cout << "=== Async ===\n";
+  test_async();
+
+  std::cout << "=== packaged_task ===\n";
+  test_packaged_task();
 
   return 0;
 }
