@@ -202,6 +202,33 @@ void test_rvalue_reference() { wrapper2("temp string"); }
 // -----------
 // Uniform Initialization {}
 // -----------
+//
+// Search order:
+//   1. initializer_list constructor
+//   2. regular constructor
+//   3. aggregate initializer
+
+// Aggregate class or struct
+class Dog {
+ public:
+  int age;
+  std::string name;
+};
+
+class Person {
+ public:
+  int age;  // 3rd choice
+  std::string name;
+
+  Person(int a, std::string n) : age(a), name(n) {  // 2nd choice
+    std::cout << "2nd choice\n";
+  }
+
+  Person(const std::initializer_list<int> &vec) {  // 1st choice
+    std::cout << "1st choice\n";
+    age = *(vec.begin());
+  }
+};
 
 void test_init() {
   // =
@@ -220,13 +247,25 @@ void test_init() {
     std::cout << "(): " << x << " " << a << "\n";
   }
 
-  // {}: cpp11, uniform initialization
+  // {}: c++11, uniform initialization
   {
     int x{5};
     // int y{3.14}; // ERROR: narrowing double -> int
     std::string a{"hello"};
-    std::cout << "{}: " << x << " " << a << "\n";
+
+    int arr[] = {2, 3, 4};             // c++ 03 initializer list
+    std::vector<int> vec = {3, 4, 5};  // c++ 11 extended the support to all
+                                       // relevant STL containers
+    int arr2[]{2, 3, 4};
+    std::vector<int> vec2{3, 4, 5};
+
+    std::cout << "{}: " << x << " " << a << " " << arr[0] << " " << vec[0]
+              << " " << arr2[0] << " " << vec2[0] << "\n";
   }
+
+  Dog d{20, "Boba"};
+  Person p1{10};
+  Person p2{20, "Bob"};
 }
 
 // -----------
