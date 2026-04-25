@@ -285,6 +285,8 @@ int run() {
   std::cout << "Item count: " << Item::global_item_count << "\n";
 
   std::cout << "\n--- End ---\n";
+
+  return 0;
 }
 
 }  // namespace OOP
