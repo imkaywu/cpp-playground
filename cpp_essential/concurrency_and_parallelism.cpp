@@ -513,6 +513,36 @@ void test_promise_and_future() {
   t.join();
 }
 
+void divide(std::promise<double> &&prms, double num, double denom) {
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));  // simulate work
+  try {
+    if (denom == 0) {
+      throw std::runtime_error("Exception from thread: division by zero");
+    } else {
+      prms.set_value(num / denom);
+    }
+  } catch (...) {
+    prms.set_exception(std::current_exception());
+  }
+}
+
+void test_promise_and_future_exception() {
+  std::promise<double> prms;
+  std::future<double> ftr = prms.get_future();
+
+  double num = 42.0, denom = 0.0;
+  std::thread t(divide, std::move(prms), num, denom);
+
+  try {
+    double result = ftr.get();
+    std::cout << "Division result: " << result << "\n";
+  } catch (std::runtime_error e) {
+    std::cout << e.what() << "\n";
+  }
+
+  t.join();
+}
+
 // ------------
 // Async
 // ------------
@@ -563,6 +593,7 @@ int run() {
 
   std::cout << "=== Promise and Future ===\n";
   test_promise_and_future();
+  test_promise_and_future_exception();
 
   std::cout << "=== Async ===\n";
   test_async();
