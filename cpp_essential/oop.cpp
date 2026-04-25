@@ -18,6 +18,13 @@ namespace OOP {
 //////////////////////////////////////////////////////////////
 // (21–27) Resource class to force Rule of 5
 //////////////////////////////////////////////////////////////
+//
+// Rule of 5: if class manages resource, usually define
+// - destructor
+// - copy ctor
+// - copy assign
+// - move ctor
+// - move assign
 
 class Buffer {
  private:
