@@ -8,6 +8,7 @@
 
 #include "concurrency_and_parallelism.cpp"
 #include "memory_management.cpp"
+#include "modern_feat.cpp"
 #include "oop.cpp"
 #include "singleton.cpp"
 #include "template_generic_programming.cpp"
@@ -69,6 +70,8 @@ int main() {
   TP::run();
 #elif defined(TEST_MT)
   MT::run();
+#elif defined(TEST_MD)
+  MD::run();
 #endif
 
   return 0;
