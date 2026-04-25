@@ -1,5 +1,6 @@
 #include <chrono>
 #include <condition_variable>
+#include <functional>
 #include <future>
 #include <iostream>
 #include <mutex>
@@ -477,14 +478,14 @@ void test_atomic_and_memory_order_model() {
   start = std::chrono::high_resolution_clock::now();
   spawn_threads2();
   end = std::chrono::high_resolution_clock::now();
-  std::cout << "false sharing, num_threads=4, num_counters=1, duration="
+  std::cout << "false sharing, num_threads=4, num_counters=4, duration="
             << std::chrono::duration<double, std::milli>(end - start).count()
             << "ms\n";
 
   start = std::chrono::high_resolution_clock::now();
   spawn_threads3();
   end = std::chrono::high_resolution_clock::now();
-  std::cout << "no sharing, num_threads=4, num_counters=1, duration="
+  std::cout << "no sharing, num_threads=4, num_counters=4, duration="
             << std::chrono::duration<double, std::milli>(end - start).count()
             << "ms\n";
 }
@@ -567,6 +568,76 @@ void test_packaged_task() {
   t2.join();
 }
 
+// ------------
+// ThreadPool
+// ------------
+class ThreadPool {
+ public:
+  ThreadPool(int n) {
+    for (int i = 0; i < n; ++i) {
+      workers.emplace_back([this]() {
+        while (true) {
+          std::function<void()> task;
+
+          {
+            std::unique_lock<std::mutex> lock(mtx);
+            cv.wait(lock, [this] { return stop || !tasks.empty(); });
+
+            if (stop && tasks.empty()) {
+              return;
+            }
+
+            task = std::move(tasks.front());
+            tasks.pop();
+          }
+
+          task();
+        }
+      });
+    }
+  }
+
+  ~ThreadPool() {
+    {
+      std::lock_guard<std::mutex> lock(mtx);
+      stop = true;
+    }
+    cv.notify_all();
+
+    for (int i = 0; i < workers.size(); ++i) {
+      workers[i].join();
+    }
+  }
+
+  void enqueue(std::function<void()> task) {
+    {
+      std::lock_guard<std::mutex> lock(mtx);
+      tasks.push(task);
+    }
+    cv.notify_one();
+  }
+
+ private:
+  std::vector<std::thread> workers;
+  std::queue<std::function<void()>> tasks;
+
+  std::mutex mtx;
+  std::condition_variable cv;
+  bool stop = false;
+};
+
+void test_thread_pool() {
+  ThreadPool pool(3);
+
+  for (int i = 0; i < 5; ++i) {
+    pool.enqueue([i]() {
+      std::cout << "Task " << i << " executed by thread "
+                << std::this_thread::get_id() << "\n";
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    });
+  }
+}
+
 int run() {
   std::cout << "=== Thread ===\n";
   test_thread();
@@ -600,6 +671,9 @@ int run() {
 
   std::cout << "=== packaged_task ===\n";
   test_packaged_task();
+
+  std::cout << "=== ThreadPool ===\n";
+  test_thread_pool();
 
   return 0;
 }
