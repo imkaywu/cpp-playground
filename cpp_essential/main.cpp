@@ -9,7 +9,7 @@
 #include "concurrency_and_parallelism.cpp"
 #include "core.cpp"
 #include "memory_management.cpp"
-#include "modern_feat.cpp"
+#include "modern.cpp"
 #include "oop.cpp"
 #include "singleton.cpp"
 #include "template_generic_programming.cpp"
@@ -82,24 +82,3 @@ T add_concept(T a, T b) {
   return a + b;
 }
 */
-
-// -----------
-// if constexpr
-// -----------
-template <typename T>
-void print_info(const T &value) {
-  if constexpr (std::is_arithmetic_v<T>) {
-    cout << "Arithmetic value: " << value << endl;
-  } else if constexpr (std::is_same_v<T, string>) {
-    cout << "String value: " << value << endl;
-  } else {
-    cout << "Other type" << endl;
-  }
-}
-
-void test_if_constexpr() {
-  print_info(42);
-  print_info(3.14);
-  print_info(string("Hi"));
-  print_info(vector<int>{1, 2, 3});
-}

@@ -283,8 +283,29 @@ constexpr int square(int x) { return x * x; }
 void test_constexpr_function() {
   constexpr int n = square(5);
   std::array<int, n> arr{};
+  std::cout << "array variable declared successfully\n";
 }
 
+// -----------
+// if constexpr
+// -----------
+template <typename T>
+void print_info(const T &value) {
+  if constexpr (std::is_arithmetic_v<T>) {
+    std::cout << "Arithmetic value: " << value << "\n";
+  } else if constexpr (std::is_same_v<T, std::string>) {
+    std::cout << "String value: " << value << "\n";
+  } else {
+    std::cout << "Other type" << "\n";
+  }
+}
+
+void test_if_constexpr() {
+  print_info(42);
+  print_info(3.14);
+  print_info(std::string("Hi"));
+  print_info(std::vector<int>{1, 2, 3});
+}
 // -----------
 // modules
 // -----------
@@ -354,6 +375,9 @@ int run() {
 
   std::cout << "=== constexpr function ===\n";
   test_constexpr_function();
+
+  std::cout << "=== if constexpr ===\n";
+  test_if_constexpr();
 
   std::cout << "=== std::span ===\n";
   test_span();
