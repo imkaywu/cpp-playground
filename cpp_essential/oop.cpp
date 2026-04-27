@@ -252,6 +252,199 @@ void goodUse(const Item& item) {
   item.use();
 }
 
+// -----------
+// OOP
+// -----------
+// Base class with polymorphism
+class Shape {
+ public:
+  Shape() { std::cout << "Construct Shape\n"; }
+  virtual void draw() const = 0;  // pure virtual -> abstract class
+  virtual ~Shape() { std::cout << "Destruct Shape\n"; }
+};
+
+class Circle : public Shape {
+  int radius;
+
+ public:
+  Circle(int r) : radius(r) { std::cout << "Construct Circle\n"; }
+  void draw() const override {
+    std::cout << "Draw circle with radius: " << radius << "\n";
+  }
+  ~Circle() { std::cout << "Destruct Circle\n"; }
+
+  friend void showRadius(const Circle&);
+};
+
+void showRadius(const Circle& c) {
+  std::cout << "Circle radius: " << c.radius << "\n";
+}
+
+// Class with constructors/desctructors/copy/move
+class Resource {
+  // Private does not mean “object-private.” It means “class-private.”
+ private:
+  int* data;
+
+ public:
+  static int count;
+
+  Resource(int val = 0) {
+    data = new int(val);
+    count++;
+    std::cout << "Construct Resource, value=" << *data << "\n";
+  }
+
+  // copy constructor
+  Resource(const Resource& other) {
+    data = new int(*other.data);
+    count++;
+    std::cout << "Copy construct Resource, value=" << *data << "\n";
+  }
+
+  // move constructor
+  Resource(Resource&& other) noexcept {
+    data = other.data;
+    other.data = nullptr;
+    count++;
+    std::cout << "Move construct Resource, value=" << *data << "\n";
+  }
+
+  // copy assignment
+  Resource& operator=(const Resource& other) {
+    if (this != &other) {
+      delete data;
+      data = new int(*other.data);
+    }
+    std::cout << "Copy assigned Resource, value=" << *data << "\n";
+    return *this;
+  }
+
+  // move assignment
+  Resource& operator=(Resource&& other) noexcept {
+    if (this != &other) {
+      delete data;
+      data = other.data;
+      other.data = nullptr;
+    }
+    std::cout << "Move assigned Resource, value=" << *data << "\n";
+    return *this;
+  }
+
+  // Destructor
+  ~Resource() {
+    if (data) {
+      std::cout << "Destruct resource, value=" << *data << "\n";
+      delete data;
+    } else {
+      std::cout << "Destruct resource, value nullptr" << "\n";
+    }
+    count--;
+  }
+
+  int get() const { return *data; }
+
+  Resource operator+(const Resource& other) const {
+    return Resource(*data + *other.data);
+  }
+
+  static int get_count() { return count; }
+};
+
+class Manager {
+  std::unique_ptr<Resource> res;
+
+ public:
+  Manager(int val) : res(std::make_unique<Resource>(val)) {}
+  void show() { std::cout << "Managed resource = " << res->get() << "\n"; }
+};
+
+int Resource::count = 0;  // static members need a definition in a source file
+
+void test_oop() {
+  std::cout << "--- Constructors/Copy/Move ---\n";
+  Resource r1(10);
+  Resource r2(20);
+  Resource r3 = r1;             // copy construct
+  Resource r4 = r1 + r2;        // operator+
+  r3 = r2;                      // copy assign
+  Resource r5 = std::move(r1);  // move construct
+  r5 = std::move(r2);           // move assign
+  std::cout << "Current resource count: " << Resource::get_count() << "\n";
+
+  std::cout << "--- Polymorphism ---\n";
+  std::unique_ptr<Shape> shape = std::make_unique<Circle>(5);
+  shape->draw();
+  Circle* circle = dynamic_cast<Circle*>(shape.get());
+  showRadius(*circle);
+
+  std::cout << "--- RAII & smart pointer ---\n";
+  Manager mgr(99);
+  mgr.show();
+
+  std::cout << "--- Destruct ---\n";
+}
+
+// -----------
+// Multiple inheritance
+// -----------
+// Ambiguity: If two base classes have member functions or variables with the
+// same name.
+//
+// Solution: Can be resolved using "scope resolution operator (::)":
+// object.BaseClass1::function()
+//
+// Diamond Problem: this results in the derived class having two separate copies
+// of the original base class, leading to conflicts
+//
+// Solution: Virtual Inheritance
+//      A
+//     / \
+//    B   C
+//     \ /
+//      D
+class A {
+ public:
+  A() { std::cout << "A constructed\n"; }
+  ~A() { std::cout << "A destroyed\n"; }
+  int value = 1;
+};
+class B : virtual public A {
+ public:
+  B() { std::cout << "B constructed\n"; }
+  ~B() { std::cout << "B destroyed\n"; }
+};
+class C : virtual public A {
+ public:
+  C() { std::cout << "C constructed\n"; }
+  ~C() { std::cout << "C destroyed\n"; }
+};
+class D : public B, public C {};
+
+void test_multi_inheritance() {
+  D d;
+  d.value = 42;  // unambiguous
+  std::cout << d.value << "\n";
+}
+
+// -----------
+// Base class initialization
+// -----------
+class Base2 {
+ public:
+  Base2(int x) { std::cout << "Base(" << x << ")\n"; }
+};
+class Derived2 : public Base2 {
+  int data;
+
+ public:
+  Derived2(int x, int y) : Base2(x), data(y) {
+    std::cout << "Derived(" << x << ", " << y << ")\n";
+  }
+};
+
+void test_base_class_init() { Derived2 d(1, 2); }
+
 //////////////////////////////////////////////////////////////
 // Main
 //////////////////////////////////////////////////////////////
@@ -283,6 +476,15 @@ int run() {
 
   std::cout << "\n--- Static Count ---\n";
   std::cout << "Item count: " << Item::global_item_count << "\n";
+
+  std::cout << "=== Basics ===\n";
+  test_oop();
+
+  std::cout << "=== Multiple Inheritance ===\n";
+  test_multi_inheritance();
+
+  std::cout << "=== Base Class Init ===\n";
+  test_base_class_init();
 
   std::cout << "\n--- End ---\n";
 
