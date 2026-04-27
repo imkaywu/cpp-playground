@@ -36,9 +36,7 @@ auto multiply(T a, U b) {
 }
 
 template <typename T, typename U>
-T clamp(T value, U low, U high) {
-  using Common = decltype(value + low);
-
+auto clamp(T value, U low, U high) -> decltype(value + low) {
   return value < low ? low : (value > high ? high : value);
 }
 
@@ -62,7 +60,7 @@ void test_function_template() {
 template <typename T>
 class SimpleVector {
  private:
-  T *data;
+  T* data;
   size_t size;
   size_t capacity;
 
@@ -71,10 +69,10 @@ class SimpleVector {
 
   ~SimpleVector() { delete[] data; }
 
-  void push_back(const T &value) {
+  void push_back(const T& value) {
     if (size == capacity) {
       capacity = capacity == 0 ? 1 : capacity * 2;
-      T *new_data = new T[capacity];
+      T* new_data = new T[capacity];
 
       for (size_t i = 0; i < size; ++i) {
         new_data[i] = data[i];
@@ -87,7 +85,7 @@ class SimpleVector {
     data[size++] = value;
   }
 
-  T &operator[](size_t index) {
+  T& operator[](size_t index) {
     if (index >= size) throw std::out_of_range("Index out of range");
 
     return data[index];
@@ -145,7 +143,7 @@ void test_class_template() {
   SafeBox<int> safe_box_int(42);
   try {
     std::cout << safe_box_int.get_value() << "\n";
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     std::cout << e.what() << "\n";
   }
 
@@ -162,7 +160,7 @@ void test_class_template() {
 template <typename T>
 class Printer {
  public:
-  static void print(const T &value) { std::cout << value << "\n"; }
+  static void print(const T& value) { std::cout << value << "\n"; }
 };
 
 // Full specialization for bool
@@ -183,7 +181,7 @@ struct IsPointer {
 };
 
 template <typename T>
-struct IsPointer<T *> {
+struct IsPointer<T*> {
   static constexpr bool value = true;
 };
 
@@ -233,6 +231,7 @@ bool pair_comparer(T a, T b, Args... args) {
   return a == b && pair_comparer(args...);
 }
 
+// TODO
 template <typename... Args>
 void print_fold(Args... args) {
   // comma operator: chain all those operations together inside a fold
@@ -240,13 +239,14 @@ void print_fold(Args... args) {
   std::cout << "\n";
 }
 
+// TODO
 template <typename... Args>
 void count_args(Args... args) {
   std::cout << "Number of args: " << sizeof...(args) << "\n";
 }
 
 template <typename T, typename... Args>
-std::unique_ptr<T> make_unique_custom(Args &&...args) {
+std::unique_ptr<T> make_unique_custom(Args&&... args) {
   return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
 
@@ -279,29 +279,79 @@ void test_variadic_templates() {
 // ------------
 // Template type deduction
 // ------------
-// Rule 1: By value -> drops reference & const
-//   template<typename T>
-//   void f(T x);
-//   const int a = 10;
-//   f(a);  // T = int (const dropped)
+// Rule 1: By value -> drops reference, top-level const, top-level volatile
 // Rule 2: By reference -> preserves const
-//   template<typename T>
-//   void f(T& x);
-//   const int a = 10;
-//   f(a);  // T = const int
-// Rule 3: universal refernce
-//   template<typename T>
-//   void f(T&& x);
-//   int a = 10;
-//   f(a);  // T = int&
-//   f(1);  // T = int
+// Rule 3: forward reference.
+//   - lvalue argument -> T = U&
+//   - rvalue argument -> T = U
+// Reference collapsing rules for forwarding reference:
+//   - &  + &  = &
+//   - &  + && = &
+//   - && + &  = &
+//   - && + && = &&
 
 template <typename T>
-void inspect(T &&p) {
+void f(T x) {
+  std::cout << __PRETTY_FUNCTION__ << "\n";
+}
+
+template <typename T>
+void f2(T& x) {
+  std::cout << __PRETTY_FUNCTION__ << "\n";
+}
+
+template <typename T>
+void f3(const T& x) {
+  std::cout << __PRETTY_FUNCTION__ << "\n";
+}
+
+template <typename T>
+void f4(T&& x) {
+  std::cout << __PRETTY_FUNCTION__ << "\n";
+}
+
+template <typename T>
+void inspect(T&& p) {
   if constexpr (std::is_lvalue_reference<T>::value) {
     std::cout << "T is lvalue reference\n";
   } else {
     std::cout << "T is NOT lvalue reference\n";
+  }
+}
+
+void test_template_type_deduct() {
+  std::cout << "--- pass by value ---\n";
+  {
+    int a = 5;
+    const int b = 10;
+    int& c = a;
+
+    f(a);  // T = int
+    f(b);  // T = int
+    f(c);  // T = int
+  }
+
+  std::cout << "--- pass by reference ---\n";
+  {
+    int a = 5;
+    const int b = 10;
+    f2(a);  // T = int. Parameter type = int&
+    f2(b);  // T = const int. Parameter type = const int&
+  }
+
+  std::cout << "--- Const reference ---\n";
+  {
+    int a = 5;
+    const int b = 10;
+    f3(a);  // T = int. Parameter type = const int&
+    f3(b);  // T = int. Parameter type = const int&
+  }
+
+  std::cout << "--- Forwarding Reference ---\n";
+  {
+    int a = 5;
+    f4(a);   // T = int&, parameter becomes int&
+    f4(10);  // T = int, parameter becomes int&&
   }
 }
 
@@ -318,19 +368,19 @@ auto add(T a, U b) -> decltype(a + b) {
 // -----------
 int global_x = 10;
 
-int &get_ref() { return global_x; }
+int& get_ref() { return global_x; }
 int get_val() { return global_x; }
 
 template <typename Container>
-decltype(auto) get_first(Container &&c) {
+decltype(auto) get_first(Container&& c) {
   return std::forward<Container>(c).front();
 }
 
 void test_decltype_auto() {
   {
-    std::cout << "=== Basic ===\n";
+    std::cout << "--- Basic ---\n";
     int x = 42;
-    const double &y = 3.14;
+    const double& y = 3.14;
     std::string s = "hello";
 
     decltype(x) a = 10;          // int
@@ -342,7 +392,7 @@ void test_decltype_auto() {
   }
 
   {
-    std::cout << "=== decltype(auto) ===\n";
+    std::cout << "--- decltype(auto) ---\n";
     auto a = get_ref();
     decltype(auto) b = get_ref();
 
@@ -408,6 +458,7 @@ std::enable_if_t<std::is_integral<T>::value, T> square(T x) {
 //
 // Template substitution = the compiler replacing template parameters with
 // actual types/values and checking if the resulting code is valid.
+
 template <typename T>
 typename std::enable_if<std::is_integral<T>::value, T>::type increment(
     T value) {
@@ -422,6 +473,25 @@ typename std::enable_if<std::is_floating_point<T>::value, T>::type increment(
   return value + 0.5;
 }
 
+template <typename T>
+auto print_type2(const T& value) ->
+    typename std::enable_if<std::is_integral<T>::value>::type {
+  std::cout << "Integral type: " << value << "\n";
+}
+
+template <typename T>
+auto print_type2(const T& value) ->
+    typename std::enable_if<std::is_floating_point<T>::value>::type {
+  std::cout << "Floating-point type: " << value << "\n";
+}
+
+template <typename T>
+auto print_type2(const T& value) ->
+    typename std::enable_if<!std::is_arithmetic<T>::value>::type {
+  std::cout << "Other type: " << value << "\n";
+}
+
+// TODO
 template <typename, typename = void>
 struct has_size_method : std::false_type {};
 
@@ -429,46 +499,28 @@ template <typename T>
 struct has_size_method<T, std::void_t<decltype(std::declval<T>().size())>>
     : std::true_type {};
 
-template <typename T>
-auto print_type2(const T &value) ->
-    typename std::enable_if<std::is_integral<T>::value>::type {
-  std::cout << "Integral type: " << value << "\n";
-}
-
-template <typename T>
-auto print_type2(const T &value) ->
-    typename std::enable_if<std::is_floating_point<T>::value>::type {
-  std::cout << "Floating-point type: " << value << "\n";
-}
-
-template <typename T>
-auto print_type2(const T &value) ->
-    typename std::enable_if<!std::is_arithmetic<T>::value>::type {
-  std::cout << "Other type: " << value << "\n";
-}
-
 void test_sfinae() {
   std::cout << "--- Basic ---\n";
   std::cout << increment(10) << "\n";
   std::cout << increment(10.0) << "\n";
+
+  std::cout << "--- Function overloading with SFINAE ---\n";
+  print_type2(42);
+  print_type2(3.14);
+  print_type2("Hello world");
 
   std::cout << "--- Detect if a class has a member function ---\n";
   std::cout << std::boolalpha;
   std::cout << has_size_method<int>::value << "\n";
   std::cout << has_size_method<std::vector<int>>::value << "\n";
   std::cout << has_size_method<std::string>::value << "\n";
-
-  std::cout << "--- Function overloading with SFINAE ---\n";
-  print_type2(42);
-  print_type2(3.14);
-  print_type2("Hello world");
 }
 
 // -----------
 // requires clause
 // -----------
 template <typename T>
-  requires std::integral<T>
+requires std::integral<T>
 T multiply_by_two(T x) {
   return x * 2;
 }
@@ -484,7 +536,7 @@ void print_type(T) {
 }
 
 template <typename T>
-  requires std::integral<T> || std::floating_point<T>
+requires std::integral<T> || std::floating_point<T>
 T square2(T x) {
   return x * x;
 }
@@ -497,13 +549,14 @@ class Range {
 
  public:
   Range(T l, T h) : low(l), high(h) {}
-  bool contains(const T &x) const { return x >= low && x <= high; }
+  bool contains(const T& x) const { return x >= low && x <= high; }
 };
 
 void test_requires_clause() {
   std::cout << "--- Basic ---\n";
   std::cout << multiply_by_two(21) << "\n";
-  // std::cout << multiply_by_two(3.14) << "\n"; // compile error (not integral)
+  // std::cout << multiply_by_two(3.14) << "\n"; // compile error (not
+  // integral)
 
   /*
   std::cout << "=== Define your own concept ===\n";
@@ -531,8 +584,9 @@ void test_requires_clause() {
 
 // -----------
 // CRTP (Curiously Recurring Template Pattern)
-// https://eli.thegreenplace.net/2011/05/17/the-curiously-recurring-template-pattern-in-c/
 // -----------
+//
+// https://eli.thegreenplace.net/2011/05/17/the-curiously-recurring-template-pattern-in-c/
 //
 // A class inherits from a template instantiated with itself.
 //   - No virtual overhead
@@ -543,13 +597,11 @@ template <typename Derived>
 class Logger {
  public:
   Logger() {
-    std::cout << "Creating " << static_cast<Derived *>(this)->to_string()
-              << "\n";
+    std::cout << "[Ctor] " << static_cast<Derived*>(this)->to_string() << "\n";
   }
 
   ~Logger() {
-    std::cout << "Destroying " << static_cast<Derived *>(this)->to_string()
-              << "\n";
+    std::cout << "[Dtor] " << static_cast<Derived*>(this)->to_string() << "\n";
   }
 };
 
@@ -561,9 +613,9 @@ class Counter {
 
  public:
   Counter() { ++count; }
-  Counter(const Counter &) { ++count; }
-  Counter(Counter &&) noexcept { ++count; }
-  Counter &operator=(const Counter &other) { ++count; }
+  Counter(const Counter&) { ++count; }
+  Counter(Counter&&) noexcept { ++count; }
+  Counter& operator=(const Counter& other) { ++count; }
   ~Counter() { --count; }
   static int get_count() { return count; }
 };
@@ -575,8 +627,8 @@ int Counter<Derived>::count = 0;
 template <typename Derived>
 class Addable {
  public:
-  Derived operator+(const Derived &other) const {
-    Derived result = static_cast<const Derived &>(*this);
+  Derived operator+(const Derived& other) const {
+    Derived result = static_cast<const Derived&>(*this);
     result += other;
     return result;
   }
@@ -589,7 +641,7 @@ class Entity : public Logger<Derived>,
                public Addable<Derived> {
  public:
   void print() const {
-    std::cout << static_cast<const Derived *>(this)->to_string() << "\n";
+    std::cout << static_cast<const Derived*>(this)->to_string() << "\n";
   }
 };
 
@@ -601,8 +653,8 @@ class Money : public Entity<Money> {
   Money(int v = 0) : value(v) {}
 
   // Required by Addable mixin
-  Money operator+(const Money &other) {
-    Money res = static_cast<const Money &>(*this);
+  Money operator+(const Money& other) {
+    Money res = static_cast<const Money&>(*this);
     res.value += other.value;
     return res;
   }
@@ -614,6 +666,7 @@ class Money : public Entity<Money> {
 };
 
 void test_crtp() {
+  // TODO: bug?
   Money m1(30);
   Money m2(50);
 
@@ -697,7 +750,7 @@ class FixedArray {
   T arr[N];
 
  public:
-  void fill(const T &val) {
+  void fill(const T& val) {
     for (size_t i = 0; i < N; ++i) {
       arr[i] = val;
     }
@@ -759,7 +812,7 @@ int run() {
 
   std::cout << "=== Partial specialization ===\n";
   std::cout << IsPointer<int>::value << "\n";
-  std::cout << IsPointer<int *>::value << "\n";
+  std::cout << IsPointer<int*>::value << "\n";
 
   Pair<int, double> p1;
   Pair<int, int> p2;
@@ -770,16 +823,9 @@ int run() {
   test_variadic_templates();
 
   std::cout << "=== Template type deduction ===\n";
-  int x = 10;
-  inspect(x);   // lvalue -> int&
-  inspect(20);  // rvalue -> int
+  test_template_type_deduct();
 
-  std::cout << "=== decltype ===\n";
-  decltype(x) a = 10;   // int
-  decltype((x)) b = x;  // int&
-  b = 50;
-  std::cout << "x: " << x << "\n";
-
+  std::cout << "=== decltype/auto ===\n";
   test_decltype_auto();
 
   std::cout << "=== enable_if ===\n";
@@ -803,7 +849,7 @@ int run() {
 
   std::cout << "=== Type Trait ===\n";
   check<int>();
-  check<int *>();
+  check<int*>();
 
   std::cout << "=== NTTP ===\n";
   test_nttp();
