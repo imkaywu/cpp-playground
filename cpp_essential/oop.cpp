@@ -3,6 +3,8 @@
 #include <memory>
 #include <vector>
 
+#include "singleton.cpp"
+
 namespace OOP {
 
 //////////////////////////////////////////////////////////////
@@ -14,6 +16,24 @@ namespace OOP {
 // ❌ forgetting noexcept move → STL falls back to copy
 // ❌ using raw pointers in container → leaks
 //////////////////////////////////////////////////////////////
+
+// -----------
+// dynamic dispatch (vtable)
+// -----------
+// dynamic dispatch: deciding function call at runtime
+// vtable: Table of function pointers for virtual functions
+// vptr: Hidden pointer in objects pointing to vtable
+//
+// **no example code**
+
+// -----------
+// dynamic cast for RTTI
+// -----------
+// RTTI: Run-Time Type Info. Metadata for runtime type checking.
+//       only available when base class has virtual function(s)
+//       vptr → vtable → RTTI descriptor
+//
+// **no example code**
 
 //////////////////////////////////////////////////////////////
 // (21–27) Resource class to force Rule of 5
@@ -444,6 +464,16 @@ class Derived2 : public Base2 {
 };
 
 void test_base_class_init() { Derived2 d(1, 2); }
+
+// -----------
+// Singleton
+// -----------
+void test_singleton() {
+  auto& logger = Logger::Instance();
+
+  logger.Info("This is info");
+  logger.Error("This is error");
+}
 
 //////////////////////////////////////////////////////////////
 // Main

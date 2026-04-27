@@ -726,6 +726,23 @@ void test_nttp() {
   fixed_arr.show();
 }
 
+// -----------
+// Concept
+// -----------
+// A concept that requires type T to support operator+
+// C++20
+/*
+template <typename T>
+concept Addable = std::requires(T a, T b) {
+  { a + b } -> std::convertible_to<T>;
+}
+
+template <Addable T>
+T add3(T a, T b) {
+  return a + b;
+}
+*/
+
 // ------------
 // run tests
 // ------------
@@ -790,6 +807,8 @@ int run() {
 
   std::cout << "=== NTTP ===\n";
   test_nttp();
+
+  std::cout << "=== Concept (TBD) ===\n";
 
   return 0;
 }
