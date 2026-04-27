@@ -46,32 +46,32 @@ namespace OOP {
 // - move ctor
 // - move assign
 
-class Buffer {
+class String {
  private:
-  char* data;
   size_t size;
+  char* data;
 
  public:
-  Buffer(size_t sz) : size(sz), data(new char[sz]) {
-    std::cout << "[Buffer ctor]\n";
+  String(size_t sz) : size(sz), data(new char[sz]) {
+    std::cout << "[String ctor]\n";
     // void* memset(void* dest, int ch, size_t count);
     std::memset(data, 0, size);
   }
 
-  ~Buffer() {
-    std::cout << "[Buffer dtor]\n";
+  ~String() {
+    std::cout << "[String dtor]\n";
     delete[] data;
   }
 
   // copy ctor
-  Buffer(const Buffer& other) : size(other.size), data(new char[other.size]) {
-    std::cout << "[Buffer copy ctor]\n";
+  String(const String& other) : size(other.size), data(new char[other.size]) {
+    std::cout << "[String copy ctor]\n";
     std::memcpy(data, other.data, size);
   }
 
   // copy assign
-  Buffer& operator=(const Buffer& other) {
-    std::cout << "[Buffer copy assign]\n";
+  String& operator=(const String& other) {
+    std::cout << "[String copy assign]\n";
     if (this == &other) return *this;
 
     delete[] data;
@@ -83,15 +83,15 @@ class Buffer {
   }
 
   // move ctor
-  Buffer(Buffer&& other) noexcept : data(other.data), size(other.size) {
-    std::cout << "[Buffer move ctor]\n";
+  String(String&& other) noexcept : size(other.size), data(other.data) {
+    std::cout << "[String move ctor]\n";
     other.data = nullptr;
     other.size = 0;
   }
 
   // move assign
-  Buffer& operator=(Buffer&& other) noexcept {
-    std::cout << "[Buffer move assign]\n";
+  String& operator=(String&& other) noexcept {
+    std::cout << "[String move assign]\n";
     if (this == &other) return *this;
 
     delete[] data;
@@ -154,7 +154,7 @@ int Item::global_item_count = 0;
 
 class Weapon : public Item {
  private:
-  Buffer name;  // resource-owning -> triggers Rule of 5 behavior
+  String name;  // resource-owning -> triggers Rule of 5 behavior
   int damage;
 
  public:
@@ -176,7 +176,12 @@ class Weapon : public Item {
   }
 
   // (30) operator overloading
-  // TODO: return type
+  //
+  // NOTE: Return Value Optimization (RVO)/copy elision: a compiler optimization
+  // that eliminates unnecessary copies/moves when returning objects by value.
+  // The returned value is created in caller's storage (Since C++ 17)
+  //
+  // Priority: RVO > Move > Copy
   Weapon operator+(const Weapon& other) const {
     return Weapon(id, name.c_str(), damage + other.damage);
   }
@@ -227,6 +232,9 @@ class Inventory {
   Inventory(const Inventory& other) {
     std::cout << "[Inventory copy ctor]\n";
     for (const auto& it : other.items) {
+      // it->clone() returns a temporary object (prvalue), so the argument
+      // passed to push_back() is an rvalue, therefore push_back uses the
+      // rvalue overload
       items.push_back(it->clone());
     }
   }
@@ -259,6 +267,9 @@ class Inventory {
 //////////////////////////////////////////////////////////////
 // (34) Object slicing demonstration
 //////////////////////////////////////////////////////////////
+//
+// A derived-class object is copied into a base-class object by value, causing
+// the derived part to be “sliced off.”
 
 /*
 void badUse(Item item) {  // ⚠️ slicing
@@ -312,14 +323,14 @@ class Resource {
   Resource(int val = 0) {
     data = new int(val);
     count++;
-    std::cout << "Construct Resource, value=" << *data << "\n";
+    std::cout << "[Ctor] Resource, value=" << *data << "\n";
   }
 
   // copy constructor
   Resource(const Resource& other) {
     data = new int(*other.data);
     count++;
-    std::cout << "Copy construct Resource, value=" << *data << "\n";
+    std::cout << "[Copy ctor] Resource, value=" << *data << "\n";
   }
 
   // move constructor
@@ -327,7 +338,7 @@ class Resource {
     data = other.data;
     other.data = nullptr;
     count++;
-    std::cout << "Move construct Resource, value=" << *data << "\n";
+    std::cout << "[Move ctor] Resource, value=" << *data << "\n";
   }
 
   // copy assignment
@@ -336,7 +347,7 @@ class Resource {
       delete data;
       data = new int(*other.data);
     }
-    std::cout << "Copy assigned Resource, value=" << *data << "\n";
+    std::cout << "[Copy assign] Resource, value=" << *data << "\n";
     return *this;
   }
 
@@ -347,17 +358,17 @@ class Resource {
       data = other.data;
       other.data = nullptr;
     }
-    std::cout << "Move assigned Resource, value=" << *data << "\n";
+    std::cout << "[Move assign] Resource, value=" << *data << "\n";
     return *this;
   }
 
   // Destructor
   ~Resource() {
     if (data) {
-      std::cout << "Destruct resource, value=" << *data << "\n";
+      std::cout << "[Dtor] Resource, value=" << *data << "\n";
       delete data;
     } else {
-      std::cout << "Destruct resource, value nullptr" << "\n";
+      std::cout << "[Dtor] Resource, value nullptr" << "\n";
     }
     count--;
   }
@@ -414,8 +425,8 @@ void test_oop() {
 // Solution: Can be resolved using "scope resolution operator (::)":
 // object.BaseClass1::function()
 //
-// Diamond Problem: this results in the derived class having two separate copies
-// of the original base class, leading to conflicts
+// Diamond Problem: this results in the derived class having two separate
+// copies of the original base class, leading to conflicts
 //
 // Solution: Virtual Inheritance
 //      A
@@ -450,20 +461,20 @@ void test_multi_inheritance() {
 // -----------
 // Base class initialization
 // -----------
-class Base2 {
+class Base {
  public:
-  Base2(int x) { std::cout << "Base(" << x << ")\n"; }
+  Base(int x) { std::cout << "Base(" << x << ")\n"; }
 };
-class Derived2 : public Base2 {
+class Derived : public Base {
   int data;
 
  public:
-  Derived2(int x, int y) : Base2(x), data(y) {
+  Derived(int x, int y) : Base(x), data(y) {
     std::cout << "Derived(" << x << ", " << y << ")\n";
   }
 };
 
-void test_base_class_init() { Derived2 d(1, 2); }
+void test_base_class_init() { Derived d(1, 2); }
 
 // -----------
 // Singleton
@@ -496,7 +507,9 @@ int run() {
   std::cout << "\n--- Operator Overload ---\n";
   Weapon w1(3, "Axe", 15);
   Weapon w2(4, "Fire", 20);
-  Weapon w3 = w1 + w2;
+  Weapon w3 = w1 + w2;  // RVO, same effect as:
+                        // Weapon w3(w1.id, w1.name
+                        //           w1.damage+w2.damage);
   w3.use();
 
   std::cout << "\n--- Slicing Demo ---\n";
@@ -507,7 +520,7 @@ int run() {
   std::cout << "\n--- Static Count ---\n";
   std::cout << "Item count: " << Item::global_item_count << "\n";
 
-  std::cout << "=== Basics ===\n";
+  std::cout << "=== OOP Basics ===\n";
   test_oop();
 
   std::cout << "=== Multiple Inheritance ===\n";
