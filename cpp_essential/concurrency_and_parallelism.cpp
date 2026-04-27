@@ -18,10 +18,10 @@ void function() { std::cout << "function says: here is a message\n"; }
 class Functor {
  public:
   Functor() = default;
-  Functor(const Functor &) { std::cout << "functor copied\n"; }
-  Functor(Functor &&) { std::cout << "functor moved\n"; }
+  Functor(const Functor&) { std::cout << "functor copied\n"; }
+  Functor(Functor&&) { std::cout << "functor moved\n"; }
 
-  void operator()(std::string &msg) {
+  void operator()(std::string& msg) {
     std::cout << "t1 says: " << msg << "\n";
     msg = "here is another message";
   }
@@ -30,7 +30,7 @@ class Functor {
 // Thread-local variable: each thread gets its own copy
 thread_local int thread_counter = 0;
 
-void worker(int id, const std::string &name) {
+void worker(int id, const std::string& name) {
   ++thread_counter;
 
   std::cout << "Thread " << id << " (" << name << ") running on ID "
@@ -41,7 +41,7 @@ void worker(int id, const std::string &name) {
   std::cout << "Thread " << id << " done\n";
 }
 
-void increment(int &x) {
+void increment(int& x) {
   for (int i = 0; i < 5; ++i) {
     ++x;
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -62,7 +62,7 @@ int test_thread() {
 
   try {
     // NOTE: in case this block throws an error and thread fails to join
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 5; ++i) {
       std::cout << "from main: " << i << "\n";
     }
   } catch (...) {
@@ -185,8 +185,8 @@ void test_mutex_and_lock_guard() {
   std::vector<std::thread> readers, writers;
   for (int i = 0; i < 3; ++i) readers.emplace_back(reader, i);
   for (int i = 0; i < 2; ++i) writers.emplace_back(writer, i);
-  for (auto &t : readers) t.join();
-  for (auto &t : writers) t.join();
+  for (auto& t : readers) t.join();
+  for (auto& t : writers) t.join();
 
   std::cout << "--- 4. unique_lock ---\n";
   unique_lock_example();
@@ -215,21 +215,21 @@ void worker_wait() {
   std::cout << "Worker waiting...\n";
   // cv.wait(lock, predicate): put thread to sleep until predicate is true
   cv.wait(lock, [] { return ready; });  // waits until ready==true
-  std::cout << "Workder proceeds\n";
+  std::cout << "Worker proceeds\n";
 }
 
 std::deque<int> q;
 std::condition_variable cond;
 
 void produce() {
-  int count = 10;
+  int count = 5;
   while (count > 0) {
     std::unique_lock<std::mutex> locker(mtx);
     q.push_front(count);
     locker.unlock();
     cond.notify_one();
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     count--;
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 }
 
@@ -428,7 +428,7 @@ void test_atomic_and_memory_order_model() {
   std::cout << "--- atomic ---\n";
   std::vector<std::thread> threads;
   for (int i = 0; i < 10; ++i) threads.emplace_back(increment2);
-  for (auto &t : threads) t.join();
+  for (auto& t : threads) t.join();
   std::cout << "Final counter = " << counter << "\n";
 
   /*
@@ -514,7 +514,7 @@ void test_promise_and_future() {
   t.join();
 }
 
-void divide(std::promise<double> &&prms, double num, double denom) {
+void divide(std::promise<double>&& prms, double num, double denom) {
   std::this_thread::sleep_for(std::chrono::milliseconds(100));  // simulate work
   try {
     if (denom == 0) {
@@ -562,9 +562,9 @@ void test_async() {
 
 void test_packaged_task() {
   std::packaged_task<int(int)> task(compute_square);
-  std::future<int> fut3 = task.get_future();
+  std::future<int> fut = task.get_future();
   std::thread t2(std::move(task), 7);  // run task in separate thread
-  std::cout << "Result from packaged_task: " << fut3.get() << "\n";
+  std::cout << "Result from packaged_task: " << fut.get() << "\n";
   t2.join();
 }
 
