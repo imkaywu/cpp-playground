@@ -18,8 +18,6 @@ using namespace std;
 
 constexpr double PI = 3.14;  // compile-time constant
 
-void test_RAII();
-void test_smart_pointer();
 void test_singleton();
 void test_oop();
 void test_multi_inheritance();
@@ -29,8 +27,6 @@ void test_decltype_auto();
 void test_if_constexpr();
 
 int main() {
-  // test_RAII();
-  // test_smart_pointer();
   // test_singleton();
   // test_oop();
   // test_multi_inheritance();
@@ -54,102 +50,6 @@ int main() {
 #endif
 
   return 0;
-}
-
-// -----------
-// RAII
-// -----------
-class FileRAII {
-  FILE *file;
-
- public:
-  FileRAII(const char *name, const char *mode) {
-    file = fopen(name, mode);
-    if (!file) throw runtime_error("Failed to open file");
-    cout << "File opended\n";
-  }
-
-  ~FileRAII() {
-    if (file) {
-      fclose(file);
-      cout << "File closed\n";
-    }
-  }
-
-  void write(const char *msg) { fprintf(file, "%s\n", msg); }
-
-  // disable copying (if resource is unique)
-  FileRAII(const FileRAII &) = delete;
-  FileRAII &operator=(const FileRAII &) = delete;
-};
-
-void test_RAII() {
-  try {
-    FileRAII file("out.txt", "w");
-    file.write("Hello RAII");
-
-    // exception safety: destructor always runs, even if an exception is thrown
-    throw runtime_error("Simulated exception");
-
-  } catch (...) {
-    cout << "Exception caught\n";
-  }
-}
-
-// -----------
-// Smart pointer
-// -----------
-struct Node {
-  string name;
-  shared_ptr<Node> next;
-
-  Node(string n) : name(n) { cout << "Construct node: " << name << endl; }
-
-  ~Node() { cout << "Destroy node: " << name << endl; }
-};
-
-void test_smart_pointer() {
-  using std::make_shared;
-
-  cout << "=== Create two nodes ===\n";
-  auto a = make_shared<Node>("A");  // a.use_count == 1
-  auto b = make_shared<Node>("B");  // b.use_count == 1
-
-  weak_ptr<Node> wa = a;
-  weak_ptr<Node> wb = b;
-
-  cout << "Initial counts: a=" << a.use_count() << ", b=" << b.use_count()
-       << endl;
-
-  cout << "=== Link A -> B ===\n";
-  a->next = b;
-  cout << "After A -> B, a=" << a.use_count() << ", b=" << b.use_count()
-       << endl;
-
-  cout << "=== Link B -> A (create cycle) ===\n";
-  b->next = a;
-  cout << "After B -> A, a=" << a.use_count() << ", b=" << b.use_count()
-       << endl;
-
-  cout << "=== Reset local shared_ptrs a & b ===\n";
-  a.reset();  // a stops owning the object -> strong_count decrease by 1
-  b.reset();
-  if (!a) {
-    cout << "After reset locals, a is nullptr, a.use_count=" << a.use_count()
-         << endl;
-  }
-  cout << "After reset locals, wa.use_count=" << wa.use_count()
-       << ", wb.use_count=" << wb.use_count() << endl;
-
-  cout << "=== Break the cycle by resetting internal 'next' links ===\n";
-  if (auto sa = wa.lock()) {
-    sa->next.reset();  // release shared_ptr to B
-  }
-  if (auto sb = wb.lock()) {
-    sb->next.reset();  /// release shared_ptr to A
-  }
-  cout << "After breaking internal links, wa.use_count=" << wa.use_count()
-       << ", wb.use_count=" << wb.use_count() << endl;
 }
 
 // -----------
