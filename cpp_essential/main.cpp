@@ -19,14 +19,10 @@ using namespace std;
 constexpr double PI = 3.14;  // compile-time constant
 
 void test_singleton();
-void test_nttp();
-void test_decltype_auto();
 void test_if_constexpr();
 
 int main() {
   // test_singleton();
-  // test_nttp();
-  // test_decltype_auto();
   // test_if_constexpr();
 
 #if defined(TEST_CR)
@@ -71,60 +67,6 @@ void test_singleton() {
 //       vptr → vtable → RTTI descriptor
 
 // -----------
-// Non-Type Template Parameter
-// -----------
-template <size_t N>
-void repeat_hello() {
-  for (size_t i = 0; i < N; ++i) {
-    cout << "Hello!" << endl;
-  }
-}
-
-template <typename T, size_t N>
-// arr: a reference to a const array of size N
-void print_array(const T (&arr)[N]) {
-  cout << "Array size = " << N << " => ";
-  for (size_t i = 0; i < N; ++i) {
-    cout << arr[i] << " ";
-  }
-  cout << endl;
-}
-
-template <typename T, size_t N>
-class FixedArray {
-  T arr[N];
-
- public:
-  void fill(const T &val) {
-    for (size_t i = 0; i < N; ++i) {
-      arr[i] = val;
-    }
-  }
-
-  void show() const {
-    cout << "Array size = " << N << " => ";
-    for (size_t i = 0; i < N; ++i) {
-      cout << arr[i] << " ";
-    }
-    cout << endl;
-  }
-};
-
-void test_nttp() {
-  cout << "=== Basic ===\n";
-  repeat_hello<4>();
-
-  cout << "=== Array reference ===\n";
-  int arr[4] = {1, 2, 3, 4};
-  print_array<int, 4>(arr);
-
-  cout << "=== Class template with non-type parameter ===\n";
-  FixedArray<int, 4> fixed_arr;
-  fixed_arr.fill(10);
-  fixed_arr.show();
-}
-
-// -----------
 // Concept
 // -----------
 // A concept that requires type T to support operator+
@@ -140,57 +82,6 @@ T add_concept(T a, T b) {
   return a + b;
 }
 */
-
-// -----------
-// decltype/auto
-// -----------
-int global_x = 10;
-
-int &get_ref() { return global_x; }
-int get_val() { return global_x; }
-
-template <typename Container>
-decltype(auto) get_first(Container &&c) {
-  return std::forward<Container>(c).front();
-}
-
-void test_decltype_auto() {
-  {
-    cout << "=== Basic ===\n";
-    int x = 42;
-    const double &y = 3.14;
-    string s = "hello";
-
-    decltype(x) a = 10;          // int
-    decltype((x)) b = x;         // int&
-    decltype(y) c = y;           // const double&
-    decltype(s.size()) len = 5;  // size_t
-
-    cout << a << " " << b << " " << c << " " << len << endl;
-  }
-
-  {
-    cout << "=== decltype(auto) ===\n";
-    auto a = get_ref();
-    decltype(auto) b = get_ref();
-
-    a = 20;
-    b = 30;
-
-    cout << "global_x = " << global_x << endl;
-  }
-
-  {
-    vector<int> v = {1, 2, 3};
-    cout << get_first(v) << endl;
-
-    get_first(v) = 42;
-    cout << v[0] << endl;
-
-    const vector<int> cv = {4, 5, 6};
-    cout << get_first(cv) << endl;
-  }
-}
 
 // -----------
 // if constexpr

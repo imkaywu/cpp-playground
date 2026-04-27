@@ -43,15 +43,15 @@ T clamp(T value, U low, U high) {
 }
 
 void test_function_template() {
-  std::cout << "--- Function Template Basics ---n";
+  std::cout << "--- Function Template Basics ---\n";
   std::cout << add(3, 4) << "\n"
             << add(2.5, 4.1) << "\n"
             << add(std::string("Hi"), std::string("Bob")) << "\n";
 
-  std::cout << "--- Explicit Template Arguments ---n";
+  std::cout << "--- Explicit Template Arguments ---\n";
   std::cout << add<int>(10.5, 20.9) << "\n";
 
-  std::cout << "--- Multiple Type Parameters ---n";
+  std::cout << "--- Multiple Type Parameters ---\n";
   std::cout << multiply(3, 4.5) << "\n";
   std::cout << clamp(1, 0.0, 2.0) << "\n";
 }
@@ -313,6 +313,57 @@ auto add(T a, U b) -> decltype(a + b) {
   return a + b;
 }
 
+// -----------
+// decltype/auto
+// -----------
+int global_x = 10;
+
+int &get_ref() { return global_x; }
+int get_val() { return global_x; }
+
+template <typename Container>
+decltype(auto) get_first(Container &&c) {
+  return std::forward<Container>(c).front();
+}
+
+void test_decltype_auto() {
+  {
+    std::cout << "=== Basic ===\n";
+    int x = 42;
+    const double &y = 3.14;
+    std::string s = "hello";
+
+    decltype(x) a = 10;          // int
+    decltype((x)) b = x;         // int&
+    decltype(y) c = y;           // const double&
+    decltype(s.size()) len = 5;  // size_t
+
+    std::cout << a << " " << b << " " << c << " " << len << "\n";
+  }
+
+  {
+    std::cout << "=== decltype(auto) ===\n";
+    auto a = get_ref();
+    decltype(auto) b = get_ref();
+
+    a = 20;
+    b = 30;
+
+    std::cout << "global_x = " << global_x << "\n";
+  }
+
+  {
+    std::vector<int> v = {1, 2, 3};
+    std::cout << get_first(v) << "\n";
+
+    get_first(v) = 42;
+    std::cout << v[0] << "\n";
+
+    const std::vector<int> cv = {4, 5, 6};
+    std::cout << get_first(cv) << "\n";
+  }
+}
+
 // ------------
 // enable_if
 // ------------
@@ -468,7 +519,7 @@ void test_requires_clause() {
   std::cout << square2(5) << "\n";
   std::cout << square2(5.5) << "\n";
 
-  std::cout << "--- Abbreviated function templates ---n";
+  std::cout << "--- Abbreviated function templates ---\n";
   std::cout << add2(10, 20) << "\n";
   // std::cout << add2(10.1, 20.2) << "\n"; // compile error
 
@@ -621,6 +672,60 @@ void check() {
   }
 }
 
+// -----------
+// Non-Type Template Parameter (NTTP)
+// -----------
+template <size_t N>
+void repeat_hello() {
+  for (size_t i = 0; i < N; ++i) {
+    std::cout << "Hello!\n";
+  }
+}
+
+template <typename T, size_t N>
+// arr: a reference to a const array of size N
+void print_array(const T (&arr)[N]) {
+  std::cout << "Array size = " << N << " => ";
+  for (size_t i = 0; i < N; ++i) {
+    std::cout << arr[i] << " ";
+  }
+  std::cout << "\n";
+}
+
+template <typename T, size_t N>
+class FixedArray {
+  T arr[N];
+
+ public:
+  void fill(const T &val) {
+    for (size_t i = 0; i < N; ++i) {
+      arr[i] = val;
+    }
+  }
+
+  void show() const {
+    std::cout << "Array size = " << N << " => ";
+    for (size_t i = 0; i < N; ++i) {
+      std::cout << arr[i] << " ";
+    }
+    std::cout << "\n";
+  }
+};
+
+void test_nttp() {
+  std::cout << "--- Basic ---\n";
+  repeat_hello<4>();
+
+  std::cout << "--- Array reference ---\n";
+  int arr[4] = {1, 2, 3, 4};
+  print_array<int, 4>(arr);
+
+  std::cout << "--- Class template with non-type parameter ---\n";
+  FixedArray<int, 4> fixed_arr;
+  fixed_arr.fill(10);
+  fixed_arr.show();
+}
+
 // ------------
 // run tests
 // ------------
@@ -658,6 +763,8 @@ int run() {
   b = 50;
   std::cout << "x: " << x << "\n";
 
+  test_decltype_auto();
+
   std::cout << "=== enable_if ===\n";
   std::cout << "5*5=" << square(5) << "\n";
   // square(3.14); // ERROR
@@ -680,6 +787,9 @@ int run() {
   std::cout << "=== Type Trait ===\n";
   check<int>();
   check<int *>();
+
+  std::cout << "=== NTTP ===\n";
+  test_nttp();
 
   return 0;
 }
