@@ -17,18 +17,18 @@ struct Node {
   std::shared_ptr<Node> next;
 
   Node(std::string n) : name(n) {
-    std::cout << "Construct node: " << name << "\n";
+    std::cout << "[Ctor] node: " << name << "\n";
   }
 
-  ~Node() { std::cout << "Destroy node: " << name << "\n"; }
+  ~Node() { std::cout << "[Dtor] node: " << name << "\n"; }
 };
 
 void test_smart_pointer() {
   using std::make_shared;
 
-  std::cout << "=== Create two nodes ===\n";
-  auto a = make_shared<Node>("A");  // a.use_count == 1
-  auto b = make_shared<Node>("B");  // b.use_count == 1
+  std::cout << "--- Create two nodes ---\n";
+  std::shared_ptr<Node> a = make_shared<Node>("A");  // a.use_count == 1
+  auto b = make_shared<Node>("B");                   // b.use_count == 1
 
   std::weak_ptr<Node> wa = a;
   std::weak_ptr<Node> wb = b;
@@ -36,17 +36,17 @@ void test_smart_pointer() {
   std::cout << "Initial counts: a=" << a.use_count() << ", b=" << b.use_count()
             << "\n";
 
-  std::cout << "=== Link A -> B ===\n";
+  std::cout << "--- Link A -> B ---\n";
   a->next = b;
   std::cout << "After A -> B, a=" << a.use_count() << ", b=" << b.use_count()
             << "\n";
 
-  std::cout << "=== Link B -> A (create cycle) ===\n";
+  std::cout << "--- Link B -> A (create cycle) ---\n";
   b->next = a;
   std::cout << "After B -> A, a=" << a.use_count() << ", b=" << b.use_count()
             << "\n";
 
-  std::cout << "=== Reset local shared_ptrs a & b ===\n";
+  std::cout << "--- Reset local shared_ptrs a & b ---\n";
   a.reset();  // a stops owning the object -> strong_count decrease by 1
   b.reset();
   if (!a) {
@@ -56,7 +56,7 @@ void test_smart_pointer() {
   std::cout << "After reset locals, wa.use_count=" << wa.use_count()
             << ", wb.use_count=" << wb.use_count() << "\n";
 
-  std::cout << "=== Break the cycle by resetting internal 'next' links ===\n";
+  std::cout << "--- Break the cycle by resetting internal 'next' links ---\n";
   if (auto sa = wa.lock()) {
     sa->next.reset();  // release shared_ptr to B
   }
@@ -65,6 +65,46 @@ void test_smart_pointer() {
   }
   std::cout << "After breaking internal links, wa.use_count=" << wa.use_count()
             << ", wb.use_count=" << wb.use_count() << "\n";
+}
+
+// -----------
+// RAII
+// -----------
+class FileRAII {
+  FILE* file;
+
+ public:
+  FileRAII(const char* name, const char* mode) {
+    file = fopen(name, mode);
+    if (!file) throw std::runtime_error("Failed to open file");
+    std::cout << "File opended\n";
+  }
+
+  ~FileRAII() {
+    if (file) {
+      fclose(file);
+      std::cout << "File closed\n";
+    }
+  }
+
+  void write(const char* msg) { fprintf(file, "%s\n", msg); }
+
+  // disable copying (if resource is unique)
+  FileRAII(const FileRAII&) = delete;
+  FileRAII& operator=(const FileRAII&) = delete;
+};
+
+void test_RAII() {
+  try {
+    FileRAII file("out.txt", "w");
+    file.write("Hello RAII");
+
+    // exception safety: destructor always runs, even if an exception is thrown
+    throw std::runtime_error("Simulated exception");
+
+  } catch (...) {
+    std::cout << "Exception caught\n";
+  }
 }
 
 //////////////////////////////////////////////////////////////
@@ -181,46 +221,6 @@ class LogHandle {
     return *this;
   }
 };
-
-// -----------
-// RAII
-// -----------
-class FileRAII {
-  FILE* file;
-
- public:
-  FileRAII(const char* name, const char* mode) {
-    file = fopen(name, mode);
-    if (!file) throw std::runtime_error("Failed to open file");
-    std::cout << "File opended\n";
-  }
-
-  ~FileRAII() {
-    if (file) {
-      fclose(file);
-      std::cout << "File closed\n";
-    }
-  }
-
-  void write(const char* msg) { fprintf(file, "%s\n", msg); }
-
-  // disable copying (if resource is unique)
-  FileRAII(const FileRAII&) = delete;
-  FileRAII& operator=(const FileRAII&) = delete;
-};
-
-void test_RAII() {
-  try {
-    FileRAII file("out.txt", "w");
-    file.write("Hello RAII");
-
-    // exception safety: destructor always runs, even if an exception is thrown
-    throw std::runtime_error("Simulated exception");
-
-  } catch (...) {
-    std::cout << "Exception caught\n";
-  }
-}
 
 //////////////////////////////////////////////////////////////
 // (2) Custom deleter - wrapper FILE*
