@@ -4,11 +4,13 @@
 class Any {
  private:
   struct Base {
+    // make dtor virtual for polymorphism
     virtual ~Base() = default;
     virtual std::unique_ptr<Base> clone() const = 0;
     virtual const std::type_info& type() const = 0;
   };
 
+  // Constructor template
   template <typename T>
   struct Derived : Base {
     T value;
@@ -32,8 +34,11 @@ class Any {
 
   Any(Any&&) noexcept = default;
 
+  // Constructor template
   template <typename T>
-  Any(T&& value) : data(std::make_unique<Derived<T>>(std::forward<T>(value))) {}
+  Any(T&& value)
+      : data(std::make_unique<Derived<std::decay_t<T>>>(
+            std::forward<T>(value))) {}
 
   Any& operator=(const Any& other) {
     if (this != &other) {
@@ -84,6 +89,12 @@ int run_any() {
 
   a = std::string("hello world");
   std::cout << any_cast<std::string>(a) << "\n";
+
+  Any b(std::string("hello world again"));
+  std::cout << any_cast<std::string>(b) << "\n";
+
+  Any c(42.0);
+  std::cout << any_cast<double>(c) << "\n";
 
   return 0;
 }

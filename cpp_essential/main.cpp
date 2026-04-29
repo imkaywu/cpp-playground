@@ -3,6 +3,7 @@
 #include "memory_management.cpp"
 #include "modern.cpp"
 #include "oop.cpp"
+#include "stl.cpp"
 #include "template_generic_programming.cpp"
 
 int main() {
@@ -14,6 +15,8 @@ int main() {
   MM::run();
 #elif defined(TEST_TP)
   TP::run();
+#elif defined(TEST_STL)
+  STL::run();
 #elif defined(TEST_MD)
   MD::run();
 #elif defined(TEST_MT)
