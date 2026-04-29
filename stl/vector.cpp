@@ -1,10 +1,12 @@
 #include <cstddef>
+#include <iostream>
+#include <string>
 #include <utility>
 
+namespace VEC {
 // TODO:
 //  - add destructor, PopBack, Clear
 //  - be mindful of a potential bug when deleting |data|
-
 template <typename T>
 class Vector {
  public:
@@ -87,3 +89,81 @@ class Vector {
   size_t size = 0;
   size_t capacity = 0;
 };
+
+template <typename T>
+void PrintVector(const Vector<T>& vector) {
+  for (size_t i = 0; i < vector.Size(); ++i) {
+    std::cout << vector[i].x << " " << vector[i].y << " " << vector[i].z
+              << std::endl;
+  }
+  std::cout << "--------------------\n";
+}
+
+struct Point {
+  float x = 0.0;
+  float y = 0.0;
+  float z = 0.0;
+
+  Point() { std::cout << "[Ctor]\n"; }
+  // NOTE: only constructors take base initializers
+  Point(float scalar) : x(scalar), y(scalar), z(scalar) {
+    std::cout << "[Ctor] scalar\n";
+  }
+  Point(float x, float y, float z) : x(x), y(y), z(z) {
+    std::cout << "[Ctor] xyz\n";
+  }
+
+  Point(const Point& other) : x(other.x), y(other.y), z(other.z) {
+    std::cout << "[Copy Ctor]\n";
+  }
+
+  Point(Point&& other) : x(other.x), y(other.y), z(other.z) {
+    std::cout << "[Move Ctor]\n";
+  }
+
+  Point& operator=(const Point& other) {
+    x = other.x;
+    y = other.y;
+    z = other.z;
+    std::cout << "[Copy assign]\n";
+
+    // NOTE: remember to return the instance itself.
+    return *this;
+  }
+
+  Point& operator=(Point&& other) {
+    x = other.x;
+    y = other.y;
+    z = other.z;
+    std::cout << "[Move assign]\n";
+
+    // NOTE: remember to return the instance itself.
+    return *this;
+  }
+
+  ~Point() { std::cout << "[Dtor]\n"; }
+};
+
+int run() {
+  {
+    Vector<Point> vector;
+    vector.PushBack(Point());
+    vector.PushBack(Point(1.0));
+    vector.PushBack(Point(1.0, 2.0, 3.0));
+
+    PrintVector(vector);
+  }
+
+  {
+    Vector<Point> vector;
+    vector.EmplaceBack();
+    vector.EmplaceBack(1.0);
+    vector.EmplaceBack(1.0, 2.0, 3.0);
+
+    PrintVector(vector);
+  }
+
+  return 0;
+}
+
+}  // namespace VEC
