@@ -201,18 +201,23 @@ class Pair<T, T> {
 // Variadic templates
 // https://eli.thegreenplace.net/2014/variadic-templates-in-c/
 // -----------
+// Think "..." as:
+//   - before identifier in template params → “pack of”
+//   - after identifier/expression → “expand”
+
 void print() {
   std::cout << __PRETTY_FUNCTION__ << "\n";
   std::cout << "No more inputs\n";
 }
 
-// typename... Args: template parameter pack
+// |typename... Args|: **declares** that Args is a template type pack
 template <typename T, typename... Args>
-// Args... args: function parameter pack (expands into multiple parameters)
+// |Args... args|: **declares** a function parameter pack named args (expands
+// into multiple parameters)
 void print(T first, Args... args) {
   std::cout << __PRETTY_FUNCTION__ << "\n";
   std::cout << "First arg: " << first << "\n";
-  // args...: expands into multiple arguments
+  // args...: **expands** into multiple arguments
   print(args...);
 }
 
@@ -231,20 +236,6 @@ bool pair_comparer(T a, T b, Args... args) {
   return a == b && pair_comparer(args...);
 }
 
-// TODO
-template <typename... Args>
-void print_fold(Args... args) {
-  // comma operator: chain all those operations together inside a fold
-  ((std::cout << args << " "), ...);
-  std::cout << "\n";
-}
-
-// TODO
-template <typename... Args>
-void count_args(Args... args) {
-  std::cout << "Number of args: " << sizeof...(args) << "\n";
-}
-
 template <typename T, typename... Args>
 std::unique_ptr<T> make_unique_custom(Args&&... args) {
   return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
@@ -257,6 +248,13 @@ class Person {
   }
 };
 
+template <typename... Args>
+void count_args(Args... args) {
+  // Normal sizeof: measures number of bytes.
+  // Pack sizeof: measures number of arguments.
+  std::cout << "Number of args: " << sizeof...(args) << "\n";
+}
+
 void test_variadic_templates() {
   std::cout << "--- Expand a parameter pack ---\n";
   print(1, 2.5, "hello");
@@ -266,14 +264,11 @@ void test_variadic_templates() {
   std::cout << "pair comparer (odd): " << pair_comparer(1.5, 1.5, 2, 2, 6, 6, 7)
             << "\n";
 
-  std::cout << "--- Fold expression ---\n";
-  print_fold(1, 2.5, "hello");
+  std::cout << "--- Perfect forwarding ---\n";
+  make_unique_custom<Person>("Alice", 10);
 
   std::cout << "--- Count args ---\n";
   count_args(1, 2.5, "hello");
-
-  std::cout << "--- Perfect forwarding ---\n";
-  make_unique_custom<Person>("Alice", 10);
 }
 
 // ------------
@@ -284,6 +279,7 @@ void test_variadic_templates() {
 // Rule 3: forward reference.
 //   - lvalue argument -> T = U&
 //   - rvalue argument -> T = U
+//
 // Reference collapsing rules for forwarding reference:
 //   - &  + &  = &
 //   - &  + && = &
@@ -406,6 +402,7 @@ void test_decltype_auto() {
     std::vector<int> v = {1, 2, 3};
     std::cout << get_first(v) << "\n";
 
+    // ?
     get_first(v) = 42;
     std::cout << v[0] << "\n";
 
@@ -503,6 +500,8 @@ void test_sfinae() {
   std::cout << "--- Basic ---\n";
   std::cout << increment(10) << "\n";
   std::cout << increment(10.0) << "\n";
+  // compile error: candidate template ignored
+  // std::cout << increment("hello") << "\n";
 
   std::cout << "--- Function overloading with SFINAE ---\n";
   print_type2(42);
@@ -511,7 +510,12 @@ void test_sfinae() {
 
   std::cout << "--- Detect if a class has a member function ---\n";
   std::cout << std::boolalpha;
+  // decltype(std::declval<int>().size()) -> invalid
+  // template specialization discarded (SFINAE), use primary template instead
   std::cout << has_size_method<int>::value << "\n";
+  // decltype(std::declval<std::vector<int>>().size()) -> valid
+  // std::void_t<exp> -> void
+  // template specialization is used.
   std::cout << has_size_method<std::vector<int>>::value << "\n";
   std::cout << has_size_method<std::string>::value << "\n";
 }
@@ -706,10 +710,44 @@ struct Factorial<0> {
 // Fold Expressions
 // ------------
 // Reduce a parameter pack into a single value, simplify variadic templates.
+//
+// There are four forms:
+//   (... op pack)         -> (a1 op a2 op a3)
+//   (pack op ...)         -> (a1 op a2 op a3)
+//   (init op ... op pack) -> (((init op a1) op a2) op a3)
+//   (pack op ... op init) -> (a1 op (a2 op (a3 op init)))
 
 template <typename... Args>
 auto sum(Args... args) {
   return (args + ...);
+}
+
+template <typename... Args>
+auto sum2(Args... args) {
+  return (0 + ... + args);
+}
+
+template <typename... Args>
+void print_fold(Args... args) {
+  // comma operator: evaluate expressions from left to right.
+  // ((std::cout << a << " "), (std::cout << b << " "))
+  ((std::cout << args << " "), ...);
+  std::cout << "\n";
+}
+
+template <typename... Args>
+std::string join(Args... args) {
+  return (args + ... + std::string("!\n"));
+}
+
+void test_fold_expression() {
+  std::cout << "1+2+3+4=" << sum(1, 2, 3, 4) << "\n";
+
+  std::cout << "1+2+3+4=" << sum2(1, 2, 3, 4) << "\n";
+
+  print_fold(1, 2.5, "hello");
+
+  std::cout << join('A', 'B', 'C');
 }
 
 // ------------
@@ -845,7 +883,7 @@ int run() {
   std::cout << "5! = " << Factorial<5>::value << "\n";
 
   std::cout << "=== Fold Expressions ===\n";
-  std::cout << "1+2+3+4=" << sum(1, 2, 3, 4) << "\n";
+  test_fold_expression();
 
   std::cout << "=== Type Trait ===\n";
   check<int>();
