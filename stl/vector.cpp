@@ -3,7 +3,6 @@
 #include <string>
 #include <utility>
 
-namespace VEC {
 // TODO:
 //  - add destructor, PopBack, Clear
 //  - be mindful of a potential bug when deleting |data|
@@ -144,7 +143,7 @@ struct Point {
   ~Point() { std::cout << "[Dtor]\n"; }
 };
 
-int run() {
+int run_vector() {
   {
     Vector<Point> vector;
     vector.PushBack(Point());
@@ -165,5 +164,3 @@ int run() {
 
   return 0;
 }
-
-}  // namespace VEC
