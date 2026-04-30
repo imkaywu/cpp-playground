@@ -1,5 +1,6 @@
 #include "concurrency_and_parallelism.cpp"
 #include "core.cpp"
+#include "design_pattern.cpp"
 #include "memory_management.cpp"
 #include "modern.cpp"
 #include "oop.cpp"
@@ -21,6 +22,8 @@ int main() {
   MD::run();
 #elif defined(TEST_MT)
   MT::run();
+#elif defined(TEST_DP)
+  DP::run_visitor();
 #endif
 
   return 0;
