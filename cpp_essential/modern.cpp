@@ -24,7 +24,7 @@ class Buffer {
   }
 
   // copy constructor
-  Buffer(const Buffer &other) : size(other.size) {
+  Buffer(const Buffer& other) : size(other.size) {
     std::cout << "[Copy Ctor] size=" << size << "\n";
     data = new char[other.size];
     std::memcpy(data, other.data, size);
@@ -36,38 +36,38 @@ class Buffer {
   //   - enable compiler optimization
   //   - allow STL containers to use move instead of copy constructor during
   //     reallocation
-  Buffer(Buffer &&other) noexcept : data(other.data), size(other.size) {
+  Buffer(Buffer&& other) noexcept : data(other.data), size(other.size) {
     std::cout << "[Move Ctor] size=" << size << "\n";
     other.data = nullptr;
     other.size = 0;
   }
 
   // copy assign
-  Buffer &operator=(const Buffer &other) {
+  Buffer& operator=(const Buffer& other) {
     std::cout << "[Copy Assign] size=" << other.size << "\n";
 
-    if (this == &other) return *this;
-
-    delete[] data;
-    size = other.size;
-    data = new char[size];
-    std::memcpy(data, other.data, size);
+    if (this != &other) {
+      delete[] data;
+      size = other.size;
+      data = new char[size];
+      std::memcpy(data, other.data, size);
+    }
 
     return *this;
   }
 
   // move assign
-  Buffer &operator=(Buffer &&other) noexcept {
+  Buffer& operator=(Buffer&& other) noexcept {
     std::cout << "[Move Assign] size=" << other.size << "\n";
 
-    if (this == &other) return *this;
+    if (this != &other) {
+      delete[] data;
+      size = other.size;
+      data = other.data;
 
-    delete[] data;
-    size = other.size;
-    data = other.data;
-
-    other.size = 0;
-    other.data = nullptr;
+      other.size = 0;
+      other.data = nullptr;
+    }
 
     return *this;
   }
@@ -75,14 +75,13 @@ class Buffer {
   void print() const { std::cout << "size=" << size << "\n"; }
 
  private:
-  char *data;
+  char* data;
   size_t size;
 };
 
 void test_move_semantics() {
   Buffer a(100);
-  // move:
-  // - only cast to rvalue, treat |a| as movable
+  // std::move: only cast to rvalue, treat |a| as movable
   Buffer b = std::move(a);
   Buffer c = Buffer(200);
 
@@ -100,28 +99,28 @@ void test_move_semantics() {
 //   - constness
 //   - references
 //
-void process(const std::string &s) {
+void process(const std::string& s) {
   std::cout << "process(const&): " << s << "\n";
 }
 
-void process(std::string &&s) { std::cout << "process(&&): " << s << "\n"; }
+void process(std::string&& s) { std::cout << "process(&&): " << s << "\n"; }
 
 template <typename T>
-void wrapper(T &&arg) {
+void wrapper(T&& arg) {
   std::cout << "wrapper forwarding...\n";
   process(std::forward<T>(arg));  // perfect forwarding
 }
 
 template <typename T>
 class MyVector {
-  T *data;
+  T* data;
   size_t capacity;
   size_t pos;
 
  public:
   MyVector(int cap = 4) : capacity(cap), pos(0) {
     // ::operator new(sizeof(T) * capacity): allocate raw memory like malloc
-    data = static_cast<T *>(::operator new(sizeof(T) * capacity));
+    data = static_cast<T*>(::operator new(sizeof(T) * capacity));
   }
 
   ~MyVector() {
@@ -132,24 +131,24 @@ class MyVector {
     ::operator delete(data);
   }
 
-  void push_back(const T &value) {
+  void push_back(const T& value) {
     std::cout << "push_back(const T&) called\n";
     // new (ptr) T(args...): placement new, constructs objects at that memory
     new (&data[pos++]) T(value);
   }
 
-  void push_back(T &&value) {
+  void push_back(T&& value) {
     std::cout << "push_back(T&&) called\n";
     new (&data[pos++]) T(std::move(value));
   }
 
-  template <class... Args>
-  void emplace_back(Args &&...args) {
+  template <typename... Args>
+  void emplace_back(Args&&... args) {
     std::cout << "emplace_back(Args&&...) called\n";
     new (&data[pos++]) T(std::forward<Args>(args)...);
   }
 
-  const T &operator[](size_t i) const { return data[i]; }
+  const T& operator[](size_t i) const { return data[i]; }
 
   size_t size() const { return pos; }
 };
@@ -192,7 +191,7 @@ void test_perfect_forwarding() {
 //
 // IMPORTANT: named rvalue reference becomes lvalue
 
-void wrapper2(std::string &&s) {
+void wrapper2(std::string&& s) {
   process(s);             // lvalue;
   process(std::move(s));  // rvalue;
 }
@@ -224,7 +223,7 @@ class Person {
     std::cout << "2nd choice\n";
   }
 
-  Person(const std::initializer_list<int> &vec) {  // 1st choice
+  Person(const std::initializer_list<int>& vec) {  // 1st choice
     std::cout << "1st choice\n";
     age = *(vec.begin());
   }
@@ -290,7 +289,7 @@ void test_constexpr_function() {
 // if constexpr
 // -----------
 template <typename T>
-void print_info(const T &value) {
+void print_info(const T& value) {
   if constexpr (std::is_arithmetic_v<T>) {
     std::cout << "Arithmetic value: " << value << "\n";
   } else if constexpr (std::is_same_v<T, std::string>) {
