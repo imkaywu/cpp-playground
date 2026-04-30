@@ -18,8 +18,8 @@ void function() { std::cout << "function says: here is a message\n"; }
 class Functor {
  public:
   Functor() = default;
-  Functor(const Functor&) { std::cout << "functor copied\n"; }
-  Functor(Functor&&) { std::cout << "functor moved\n"; }
+  Functor(const Functor&) { std::cout << "[Copy ctor] functor\n"; }
+  Functor(Functor&&) { std::cout << "[Move ctro] functor\n"; }
 
   void operator()(std::string& msg) {
     std::cout << "t1 says: " << msg << "\n";
@@ -75,7 +75,7 @@ int test_thread() {
   std::cout << "main says: " << msg << "\n";
 
   std::cout << "\n--- Variable in Thread ---\n";
-  std::cout << "Main thread ID: " << std::this_thread::get_id() << "\n\n";
+  std::cout << "Main thread ID: " << std::this_thread::get_id() << "\n";
 
   std::thread t3(worker, 1, "Alpha");
   std::thread t4(worker, 2, "Beta");
@@ -97,7 +97,7 @@ int test_thread() {
   std::cout << "t4.joinable(): " << t4.joinable() << "\n";
   std::cout << "t5.joinable(): " << t5.joinable() << "\n";
 
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
   std::cout << "\nShared value after detached thread increment: "
             << shared_value << "\n";
