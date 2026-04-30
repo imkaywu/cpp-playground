@@ -226,7 +226,25 @@ class LogHandle {
 // (2) Custom deleter - wrapper FILE*
 //////////////////////////////////////////////////////////////
 
-using FilePtr = std::unique_ptr<FILE, decltype(&fclose)>;
+// A deleter is used mainly with smart pointers, which decides what happens when
+// pointer dies:
+//   std::unique_ptr
+//   std::shared_ptr
+//
+// Default deleter: `delete ptr;`
+//
+// But sometimes resource is NOT freed by `delete`. Examples:
+//   fclose(FILE*)
+//   free(malloc_ptr)
+//   close(fd)
+//   sqlite3_close(db)
+//   custom pool return
+
+// `int fclose(FILE* stream);`
+using FilePtr = std::unique_ptr<FILE, int (*)(FILE*)>;  // 2nd arg: function
+                                                        // pointer
+// Alternative:
+// using FilePtr = std::unique_ptr<FILE, decltype(&fclose)>;
 
 FilePtr open_file(const char* path) {
   return FilePtr(fopen(path, "w"), &fclose);
