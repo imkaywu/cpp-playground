@@ -40,19 +40,19 @@ void test_type_cast() {
   std::cout << "double: " << d << " -> int " << i << "\n";
 
   Derived der;
-  Base *b = static_cast<Base *>(&der);
+  Base* b = static_cast<Base*>(&der);
   b->speak();
 
   // safe cast within inheritance hierarchies.
   std::cout << "--- dynamic_cast ---\n";
-  Base *poly = new Derived;
-  Derived *down1 = dynamic_cast<Derived *>(poly);
+  Base* poly = new Derived;
+  Derived* down1 = dynamic_cast<Derived*>(poly);
   if (down1) {
     down1->speak();
   }
 
-  Base *poly2 = new Base;
-  Derived *down2 = dynamic_cast<Derived *>(poly2);
+  Base* poly2 = new Base;
+  Derived* down2 = dynamic_cast<Derived*>(poly2);
   if (!down2) {
     std::cout << "dynamic_cast failed, return nullptr\n";
   }
@@ -61,15 +61,15 @@ void test_type_cast() {
 
   std::cout << "--- reinterpret_cast ---\n";
   int x = 65;
-  char *px = reinterpret_cast<char *>(&x);
+  char* px = reinterpret_cast<char*>(&x);
   std::cout << "int x = " << x << " first byte as char = " << *px << "\n";
 
   uintptr_t int_ptr = reinterpret_cast<uintptr_t>(&x);
   std::cout << "pointer as integer = " << int_ptr << "\n";
 
   std::cout << "--- const_cast ---\n";
-  const char *msg = "hello";
-  char *non_const = const_cast<char *>(msg);
+  const char* msg = "hello";
+  char* non_const = const_cast<char*>(msg);
   std::cout << "Original const char*: " << msg << "\n"
             << "After const_cast: " << non_const << "\n";
 }
@@ -83,10 +83,10 @@ struct Tracker {
   Tracker(std::string n) : name(n) {
     std::cout << "Construct: " << name << "\n";
   }
-  Tracker(const Tracker &other) : name(other.name) {
+  Tracker(const Tracker& other) : name(other.name) {
     std::cout << "Copy: " << name << "\n";
   }
-  Tracker(Tracker &&other) noexcept : name(std::move(other.name)) {
+  Tracker(Tracker&& other) noexcept : name(std::move(other.name)) {
     std::cout << "Move (noexcept): " << name << "\n";
   }
   ~Tracker() { std::cout << "Destruct: " << name << "\n"; }
@@ -96,14 +96,14 @@ Tracker global_var("Global");
 
 Tracker ReturnByValue() {
   Tracker t("Value");
-  return t;  // Return-Value-Optimization(RVO)/move applies
+  return t;  // Return-Value-Optimization(RVO)
 }
 
-Tracker &ReturnByRef() { return global_var; }
+Tracker& ReturnByRef() { return global_var; }
 
-const Tracker &ReturnByConstRef() { return global_var; }
+const Tracker& ReturnByConstRef() { return global_var; }
 
-Tracker *ReturnByPointer() {
+Tracker* ReturnByPointer() {
   return new Tracker("Pointer");  // caller must delete
 }
 
@@ -112,15 +112,15 @@ void test_return_semantics() {
   Tracker v = ReturnByValue();
 
   std::cout << "--- Return by Reference ---\n";
-  Tracker &r = ReturnByRef();
+  Tracker& r = ReturnByRef();
   std::cout << "Got reference to: " << r.name << "\n";
 
   std::cout << "--- Return by Const Reference ---\n";
-  const Tracker &cr = ReturnByConstRef();
+  const Tracker& cr = ReturnByConstRef();
   std::cout << "Got const reference to: " << r.name << "\n";
 
   std::cout << "--- Return by Pointer ---\n";
-  Tracker *p = ReturnByPointer();
+  Tracker* p = ReturnByPointer();
   std::cout << "Got pointer to: " << p->name << "\n";
   delete p;
 }
@@ -201,8 +201,8 @@ void test_lambda_function() {
   std::cout << "--- mutable lambda ---\n";
   int n = 5;
   auto f = [n]() mutable {
-    n += 10;  // lambdas that capture by value can NOT modify the copies unless
-              // using mutable
+    n += 10;  // lambdas that capture by value can NOT modify the copies
+              // unless using mutable
     return n;
   };
   std::cout << "n=" << n << "\n"
@@ -257,11 +257,12 @@ void test_auto_return_type_deduct() {
   std::cout << "--- multiple returns ---\n";
   std::cout << foo(true) << " " << foo(false) << "\n";
 
+  // h() should return int& ?
   std::cout << "--- reference preservation ---\n";
-  std::cout << "f()=" << f() << "\n";
-  std::cout << "g()=" << g() << "\n";
+  std::cout << "f()=" << f() << " " << typeid(f()).name() << "\n";
+  std::cout << "g()=" << g() << " " << typeid(g()).name() << "\n";
   h() = 20;
-  std::cout << "h()=" << h() << "\n";
+  std::cout << "h()=" << h() << " " << typeid(decltype(h())).name() << "\n";
 
   std::cout << "--- template ---\n";
   std::cout << "1+2=" << add2(1, 2) << "\n"
@@ -272,17 +273,17 @@ void test_auto_return_type_deduct() {
 // -----------
 // basic pointer
 // -----------
-void allocate(int *p) { p = new int(10); }
+void allocate(int* p) { p = new int(10); }
 
-void allocate(int **p) {
+void allocate(int** p) {
   *p = new int(10);  // modifies the pointer
 }
 
 void test_basic_pointer() {
   std::cout << "--- pointer ---\n";
   int x = 5;
-  int *px = &x;
-  int **ppx = &px;  // pointer to pointer
+  int* px = &x;
+  int** ppx = &px;  // pointer to pointer
   std::cout << "x=" << x << "\n"
             << "*px=" << *px << "\n"
             << "**ppx=" << **ppx << "\n";
@@ -299,7 +300,7 @@ void test_basic_pointer() {
   std::cout << "**ppx=" << **ppx << "\n";
 
   std::cout << "--- dangling pointer ---\n";
-  int *heap_ptr = new int(99);
+  int* heap_ptr = new int(99);
   std::cout << "*heap_ptr=" << *heap_ptr << "\n";
   delete heap_ptr;
   heap_ptr = nullptr;
@@ -312,7 +313,7 @@ void test_basic_pointer() {
 // -----------
 void foo(int n) { std::cout << "int overload\n"; }
 
-void foo(int *p) { std::cout << "int* overload\n"; }
+void foo(int* p) { std::cout << "int* overload\n"; }
 
 void test_nullptr_NULL_macro() {
   foo(0);
@@ -328,7 +329,7 @@ void test_nullptr_NULL_macro() {
 // -----------
 void test_new_delete() {
   std::cout << "--- arrays ---\n";
-  int *arr = new int[5]{1, 2, 3, 4, 5};
+  int* arr = new int[5]{1, 2, 3, 4, 5};
   for (int i = 0; i < 5; ++i) {
     std::cout << arr[i] << " ";
   }
@@ -337,7 +338,7 @@ void test_new_delete() {
   delete[] arr;
 
   std::cout << "--- objects ---\n";
-  Tracker *tracker = new Tracker("test new delete");
+  Tracker* tracker = new Tracker("test new delete");
   delete tracker;
 }
 
@@ -350,7 +351,7 @@ void test_const_correctness() {
   int b = 20;
 
   std::cout << "--- pointer to const data ---\n";
-  const int *p1 = &a;
+  const int* p1 = &a;
   std::cout << "*p1=" << *p1 << "\n";
 
   // *p1 = 30; error: cannot modify data
@@ -358,13 +359,13 @@ void test_const_correctness() {
   std::cout << "*p1=" << *p1 << "\n";
 
   std::cout << "--- const pointer to non-const data ---\n";
-  int *const p2 = &a;
+  int* const p2 = &a;
   *p2 = 40;
   std::cout << "*p2=" << *p2 << "\n";
   // p2 = &b; // error: cannot modify pointer
 
   std::cout << "--- const pointer to const data ---\n";
-  const int *const p3 = &a;
+  const int* const p3 = &a;
   std::cout << "*p3=" << *p3 << "\n";
   // *p3 = 50; error: cannot modify data
   // p3 = &b; error: cannot modify pointer
