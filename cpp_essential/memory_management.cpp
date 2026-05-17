@@ -7,6 +7,8 @@
 #include <new>
 #include <vector>
 
+#include "benchmark.cpp"
+
 namespace MM {
 
 // -----------
@@ -104,6 +106,177 @@ void test_RAII() {
 
   } catch (...) {
     std::cout << "Exception caught\n";
+  }
+}
+
+// -----------
+// Allocator
+// -----------
+
+template <typename T>
+class CAllocator {
+ public:
+  using value_type = T;
+
+  CAllocator() = default;
+
+  template <typename U>
+  CAllocator(const CAllocator<U>&) noexcept {}
+
+  ~CAllocator() = default;
+
+  T* allocate(size_t n) {
+    if (n > max_size()) {
+      throw std::bad_alloc();
+    }
+
+    void* ptr = std::malloc(n * sizeof(T));
+
+    if (ptr == nullptr) {
+      throw std::bad_alloc();
+    }
+
+    return static_cast<T*>(ptr);
+  }
+
+  void deallocate(T* ptr, size_t) noexcept { free(ptr); }
+
+  constexpr size_t max_size() const noexcept {
+    return static_cast<std::size_t>(-1) / sizeof(T);
+  }
+
+  template <typename U>
+  struct rebind {
+    using other = CAllocator<U>;
+  };
+
+  template <typename U>
+  constexpr bool operator==(const CAllocator<U>&) const noexcept {
+    return true;
+  }
+
+  template <typename U>
+  constexpr bool operator!=(const CAllocator<U>&) const noexcept {
+    return false;
+  }
+};
+
+template <typename T>
+class LinearAllocator {
+ public:
+  using value_type = T;
+
+ public:
+  explicit LinearAllocator(size_t size)
+      : block(std::make_shared<Block>(size)) {}
+
+  LinearAllocator(const LinearAllocator&) = default;
+
+  // NOTE: template constructor:
+  //   Containers internally rebind allocators to other types
+  //
+  //   std::list<int>
+  //
+  //   internally allocates `_List_node<int>`
+  //
+  //   STL needs `LinearAllocator<_List_node<int>>` constructed from
+  //   `LinearAllocator<int>>`
+  template <typename U>
+  LinearAllocator(const LinearAllocator<U>& other) noexcept
+      : block(other.block) {}
+
+  ~LinearAllocator() = default;
+
+  // NOTE: compiler attribute, warning if caller ignores return value.
+  [[nodiscard]]
+  T* allocate(size_t n) {
+    size_t bytes = n * sizeof(T);
+    size_t alignment = alignof(T);
+
+    uintptr_t addr = reinterpret_cast<uintptr_t>(block->current);
+
+    size_t padding = (alignment - (addr % alignment)) % alignment;
+
+    if (block->used + padding + bytes > block->size) {
+      throw std::bad_alloc();
+    }
+
+    addr += padding;
+
+    T* result = reinterpret_cast<T*>(addr);
+
+    block->current = reinterpret_cast<char*>(addr + bytes);
+
+    block->used += padding + bytes;
+
+    return result;
+  }
+
+  void deallocate(T*, size_t) noexcept {
+    // NOTE: Linear allocator does not support individual deallocation.
+    // no-op
+  }
+
+  void reset() {
+    block->current = block->start;
+    block->used = 0;
+  }
+
+  // NOTE: Given allocator for T, create equivalent allocator for U
+  //   LinearAllocator<int> -> LinearAllocator<ListNode<int>>
+  template <typename U>
+  struct rebind {
+    using other = LinearAllocator<U>;
+  };
+
+  // NOTE: Containers need to know "can I transfer memory ownership between
+  // these containers safely?"
+  //
+  // allocators with the same memory block are interchangeable
+  bool operator==(const LinearAllocator& other) const noexcept {
+    return block == other.block;
+  }
+
+  bool operator!=(const LinearAllocator& other) const noexcept {
+    return !(*this == other);
+  }
+
+ private:
+  struct BlockDeleter {
+    void operator()(void* ptr) const noexcept { ::operator delete(ptr); }
+  };
+
+  struct Block {
+    std::unique_ptr<void, BlockDeleter> memory;
+
+    char* start = nullptr;
+    char* current = nullptr;
+
+    size_t size = 0;
+    size_t used = 0;
+
+    explicit Block(size_t sz)
+        : memory(::operator new(sz)),
+          start(static_cast<char*>(memory.get())),
+          current(start),
+          size(sz) {}
+  };
+
+  std::shared_ptr<Block> block;
+
+  // NOTE: grants friendship between ALL specializations:
+  //    LinearAllocator<int>
+  //    LinearAllocator<double>
+  // because the rebinding constructors need access to |block|.
+  template <typename>
+  friend class LinearAllocator;
+};
+
+void test_allocator() {
+  { benchmark_vector_push("CAllocator", CAllocator<int>{}, 1'000'000); }
+  {
+    benchmark_vector_push(
+        "LinearAllocator", LinearAllocator<int>(1024 * 1024 * 64), 1'000'000);
   }
 }
 
@@ -340,11 +513,14 @@ int run() {
   std::cout << "\n--- Alignment ---\n";
   std::cout << "alignof(AlignedCounter): " << alignof(AlignedCounter) << "\n";
 
+  std::cout << "=== Smart Pointers ===\n";
+  test_smart_pointer();
+
   std::cout << "=== RAII ===\n";
   test_RAII();
 
-  std::cout << "=== Smart Pointers ===\n";
-  test_smart_pointer();
+  std::cout << "=== Allocator ===\n";
+  test_allocator();
 
   std::cout << "\n--- End ---\n";
 
