@@ -134,6 +134,7 @@ int mul(int a, int b) { return a * b; }
 int operate(int x, int y, int (*op)(int, int)) { return op(x, y); }
 
 using FuncType = int (*)(int, int);
+typedef int (*FuncType2)(int, int);
 
 void test_function_pointer() {
   // retType (*name)(argTypes...)
@@ -146,9 +147,10 @@ void test_function_pointer() {
   // using/typedef
   std::cout << "--- using/typedef ---\n";
   FuncType ops[] = {add, sub, mul};
-  std::cout << "1+2=" << ops[0](1, 2) << "\n"
-            << "1-2=" << ops[1](1, 2) << "\n"
-            << "1*2=" << ops[2](1, 2) << "\n";
+  FuncType2 ops2[] = {add, sub, mul};
+  std::cout << "1+2=" << ops[0](1, 2) << " " << ops2[0](1, 2) << "\n"
+            << "1-2=" << ops[1](1, 2) << " " << ops2[1](1, 2) << "\n"
+            << "1*2=" << ops[2](1, 2) << " " << ops2[2](1, 2) << "\n";
 
   // Pass function pointer
   std::cout << "--- pass function operator ---\n";
