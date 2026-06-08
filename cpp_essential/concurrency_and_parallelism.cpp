@@ -1,3 +1,4 @@
+#include <barrier>
 #include <chrono>
 #include <condition_variable>
 #include <functional>
@@ -30,7 +31,7 @@ class Functor {
 // Thread-local variable: each thread gets its own copy
 thread_local int thread_counter = 0;
 
-void worker(int id, const std::string& name) {
+void work(int id, const std::string& name) {
   ++thread_counter;
 
   std::cout << "Thread " << id << " (" << name << ") running on ID "
@@ -77,8 +78,8 @@ int test_thread() {
   std::cout << "\n--- Variable in Thread ---\n";
   std::cout << "Main thread ID: " << std::this_thread::get_id() << "\n";
 
-  std::thread t3(worker, 1, "Alpha");
-  std::thread t4(worker, 2, "Beta");
+  std::thread t3(work, 1, "Alpha");
+  std::thread t4(work, 2, "Beta");
 
   int shared_value = 0;
   std::thread t5(increment, std::ref(shared_value));
@@ -194,6 +195,7 @@ void test_mutex_and_lock_guard() {
 
 // ------------
 // Condition variable
+// Design Pattern: Producer-Consumer Pattern
 // ------------
 
 std::condition_variable cv;
@@ -210,7 +212,7 @@ void notifier() {
   cv.notify_one();  // wake up one waiting thread
 }
 
-void worker_wait() {
+void worker() {
   std::unique_lock<std::mutex> lock(mtx);
   std::cout << "Worker waiting...\n";
   // cv.wait(lock, predicate): put thread to sleep until predicate is true
@@ -243,6 +245,69 @@ void consume() {
     locker.unlock();
     std::cout << "[consumer] queue value: " << data << "\n";
   }
+}
+
+const int BUFFER_SIZE = 8;
+const int DATA_SIZE = 320;  // 40 cycles
+struct SafeQueue {
+  char buffer[BUFFER_SIZE];
+  size_t head;
+  size_t tail;
+  std::mutex mtx;
+  std::condition_variable_any cv;
+};
+
+void write(SafeQueue& queue) {
+  for (int i = 0; i < DATA_SIZE; ++i) {
+    std::unique_lock<std::mutex> locker(queue.mtx);
+
+    // check if queue is full: (tail+1)%BUFFER_SIZE==head
+    queue.cv.wait(locker, [&queue]() {
+      return !((queue.tail + 1) % BUFFER_SIZE == queue.head);
+    });
+
+    queue.buffer[queue.tail] = 'a' + i % 26;
+    queue.tail = (queue.tail + 1) % BUFFER_SIZE;
+
+    locker.unlock();
+    queue.cv.notify_one();
+  }
+}
+
+void read(SafeQueue& queue) {
+  for (int i = 0; i < DATA_SIZE; ++i) {
+    std::unique_lock<std::mutex> locker(queue.mtx);
+
+    // check if queue is empty: head==tail
+    queue.cv.wait(locker, [&queue]() { return !(queue.head == queue.tail); });
+
+    std::cout << "#" << i << ": " << queue.buffer[queue.head] << ", ";
+
+    queue.head = (queue.head + 1) % BUFFER_SIZE;
+
+    locker.unlock();
+    queue.cv.notify_one();
+  }
+
+  std::cout << "\n";
+}
+
+void test_condition_variable() {
+  std::thread signaler(notifier);
+  std::thread waiter(worker);
+  signaler.join();
+  waiter.join();
+
+  std::thread producer(produce);
+  std::thread consumer(consume);
+  producer.join();
+  consumer.join();
+
+  SafeQueue safe_queue{};
+  std::thread writer(write, std::ref(safe_queue));
+  std::thread reader(read, std::ref(safe_queue));
+  writer.join();
+  reader.join();
 }
 
 // ------------
@@ -491,8 +556,10 @@ void test_atomic_and_memory_order_model() {
 }
 
 // ------------
-// Futures & promises
+// Design Pattern: Futures & Promises
 // ------------
+//
+// Producer ---> Promise -> Future ----> Consumer
 
 int compute_square(int x) {
   std::cout << "Computing square of " << x << " in thread "
@@ -569,7 +636,7 @@ void test_packaged_task() {
 }
 
 // ------------
-// ThreadPool
+// Design Pattern: Thread Pool Pattern
 // ------------
 class ThreadPool {
  public:
@@ -638,6 +705,111 @@ void test_thread_pool() {
   }
 }
 
+// ------------
+// Design Pattern: Monitor Object Pattern
+// ------------
+class BankAccount {
+ private:
+  int balance = 0;
+  std::mutex mtx;
+
+ public:
+  void deposit(int amount) {
+    std::lock_guard<std::mutex> lock(mtx);
+    balance += amount;
+  }
+
+  int get_balance() {
+    std::lock_guard<std::mutex> lock(mtx);
+    return balance;
+  }
+};
+
+void test_monitor_object_pattern() {
+  BankAccount account;
+
+  std::thread t1([&] {
+    for (int i = 0; i < 10000; ++i) {
+      account.deposit(1);
+    }
+  });
+
+  std::thread t2([&] {
+    for (int i = 0; i < 10000; ++i) {
+      account.deposit(1);
+    }
+  });
+
+  t1.join();
+  t2.join();
+
+  std::cout << "Account balance: " << account.get_balance() << "\n";
+}
+
+// ------------
+// Design Pattern: Barrier Pattern
+// ------------
+void test_barrier_pattern() {
+  constexpr int num_workers = 4;
+
+  std::barrier sync(num_workers);
+
+  std::vector<std::thread> workers;
+
+  for (int i = 0; i < num_workers; ++i) {
+    workers.emplace_back([&, i] {
+      std::cout << i << " finished phase 1\n";
+
+      sync.arrive_and_wait();
+
+      std::cout << i << " starting phase 2\n";
+    });
+  }
+
+  for (auto& t : workers) {
+    t.join();
+  }
+}
+
+// ------------
+// Design Pattern: Read-Write Lock Pattern
+// ------------
+
+class DataCache {
+ private:
+  std::unordered_map<std::string, double> data;
+  mutable std::shared_mutex mtx;
+
+ public:
+  void update(const std::string& symbol, double price) {
+    std::unique_lock<std::shared_mutex> locker(mtx);
+    data[symbol] = price;
+  }
+
+  double get(const std::string& symbol) const {
+    std::shared_lock<std::shared_mutex> locker(mtx);
+
+    auto it = data.find(symbol);
+
+    return it == data.end() ? 0.0 : it->second;
+  }
+};
+
+void test_read_write_lock_pattern() {
+  DataCache cache;
+
+  cache.update("AAPL", 200);
+
+  std::vector<std::thread> readers;
+  for (int i = 0; i < 10; ++i) {
+    readers.emplace_back([&] { std::cout << cache.get("AAPL") << "\n"; });
+  }
+
+  for (auto& t : readers) {
+    t.join();
+  }
+}
+
 int run() {
   std::cout << "=== Thread ===\n";
   test_thread();
@@ -645,16 +817,8 @@ int run() {
   std::cout << "=== Mutex & Lock guard ===\n";
   test_mutex_and_lock_guard();
 
-  std::cout << "=== Condition variable ===\n";
-  std::thread waiter(worker_wait);
-  std::thread signaler(notifier);
-  waiter.join();
-  signaler.join();
-
-  std::thread producer(produce);
-  std::thread consumer(consume);
-  producer.join();
-  consumer.join();
+  std::cout << "=== Condition Variable (Producer-Consumer Pattern) ===\n";
+  test_condition_variable();
 
   std::cout << "=== Deadlock ===\n";
   test_deadlock();
@@ -662,7 +826,7 @@ int run() {
   std::cout << "=== Atomic and Memory Order Model ===\n";
   test_atomic_and_memory_order_model();
 
-  std::cout << "=== Promise and Future ===\n";
+  std::cout << "=== Promise and Future Pattern ===\n";
   test_promise_and_future();
   test_promise_and_future_exception();
 
@@ -672,8 +836,17 @@ int run() {
   std::cout << "=== packaged_task ===\n";
   test_packaged_task();
 
-  std::cout << "=== ThreadPool ===\n";
+  std::cout << "=== Thread Pool Pattern ===\n";
   test_thread_pool();
+
+  std::cout << "=== Monitor Object Pattern ===\n";
+  test_monitor_object_pattern();
+
+  std::cout << "=== Barrier Pattern ===\n";
+  test_barrier_pattern();
+
+  std::cout << "=== Read-Write Lock Pattern ===\n";
+  test_read_write_lock_pattern();
 
   return 0;
 }

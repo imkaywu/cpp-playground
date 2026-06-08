@@ -12,6 +12,80 @@
 namespace MM {
 
 // -----------
+// new[] / delete[]
+// -----------
+class Base {
+ public:
+  Base() { std::cout << "[Ctor]\n"; }
+  ~Base() { std::cout << "[Dtor]\n"; }
+  int n;
+};
+
+void test_new_delete_internal() {
+  // Base* p = new Base[3];
+  // delete[] p;
+
+  // Solution 1: over allocation
+  size_t n = 3;
+  const size_t WORDSIZE = 8;  // for 64 bit system
+
+  char* head = (char*)operator new(WORDSIZE + n * sizeof(Base));
+  Base* p = (Base*)(head + WORDSIZE);
+  *(size_t*)head = n;
+  for (auto i = 0; i < n; ++i) {
+    new (p + i) Base();
+  }
+
+  size_t n2 = *(size_t*)((char*)p - WORDSIZE);
+  for (auto i = 0; i < n; ++i) {
+    (p + i)->~Base();
+  }
+  operator delete(head);
+
+  // Solution 2: associative array: watch p2z7SJ5MWV8
+}
+
+// -----------
+// RAII
+// -----------
+class FileRAII {
+  FILE* file;
+
+ public:
+  FileRAII(const char* name, const char* mode) {
+    file = fopen(name, mode);
+    if (!file) throw std::runtime_error("Failed to open file");
+    std::cout << "File opended\n";
+  }
+
+  ~FileRAII() {
+    if (file) {
+      fclose(file);
+      std::cout << "File closed\n";
+    }
+  }
+
+  void write(const char* msg) { fprintf(file, "%s\n", msg); }
+
+  // disable copying (if resource is unique)
+  FileRAII(const FileRAII&) = delete;
+  FileRAII& operator=(const FileRAII&) = delete;
+};
+
+void test_RAII() {
+  try {
+    FileRAII file("out.txt", "w");
+    file.write("Hello RAII");
+
+    // exception safety: destructor always runs, even if an exception is thrown
+    throw std::runtime_error("Simulated exception");
+
+  } catch (...) {
+    std::cout << "Exception caught\n";
+  }
+}
+
+// -----------
 // Smart pointer
 // -----------
 struct Node {
@@ -67,46 +141,6 @@ void test_smart_pointer() {
   }
   std::cout << "After breaking internal links, wa.use_count=" << wa.use_count()
             << ", wb.use_count=" << wb.use_count() << "\n";
-}
-
-// -----------
-// RAII
-// -----------
-class FileRAII {
-  FILE* file;
-
- public:
-  FileRAII(const char* name, const char* mode) {
-    file = fopen(name, mode);
-    if (!file) throw std::runtime_error("Failed to open file");
-    std::cout << "File opended\n";
-  }
-
-  ~FileRAII() {
-    if (file) {
-      fclose(file);
-      std::cout << "File closed\n";
-    }
-  }
-
-  void write(const char* msg) { fprintf(file, "%s\n", msg); }
-
-  // disable copying (if resource is unique)
-  FileRAII(const FileRAII&) = delete;
-  FileRAII& operator=(const FileRAII&) = delete;
-};
-
-void test_RAII() {
-  try {
-    FileRAII file("out.txt", "w");
-    file.write("Hello RAII");
-
-    // exception safety: destructor always runs, even if an exception is thrown
-    throw std::runtime_error("Simulated exception");
-
-  } catch (...) {
-    std::cout << "Exception caught\n";
-  }
 }
 
 // -----------
@@ -513,11 +547,14 @@ int run() {
   std::cout << "\n--- Alignment ---\n";
   std::cout << "alignof(AlignedCounter): " << alignof(AlignedCounter) << "\n";
 
-  std::cout << "=== Smart Pointers ===\n";
-  test_smart_pointer();
+  std::cout << "=== new[]/delte[] ===\n";
+  test_new_delete_internal();
 
   std::cout << "=== RAII ===\n";
   test_RAII();
+
+  std::cout << "=== Smart Pointers ===\n";
+  test_smart_pointer();
 
   std::cout << "=== Allocator ===\n";
   test_allocator();
