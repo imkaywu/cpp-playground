@@ -16,8 +16,8 @@ namespace MM {
 // -----------
 class Base {
  public:
-  Base() { std::cout << "[Ctor]\n"; }
-  ~Base() { std::cout << "[Dtor]\n"; }
+  Base() { std::cout << "[Ctor] Base\n"; }
+  ~Base() { std::cout << "[Dtor] Base\n"; }
   int n;
 };
 
@@ -37,7 +37,7 @@ void test_new_delete_internal() {
   }
 
   size_t n2 = *(size_t*)((char*)p - WORDSIZE);
-  for (auto i = 0; i < n; ++i) {
+  for (auto i = 0; i < n2; ++i) {
     (p + i)->~Base();
   }
   operator delete(head);
@@ -92,7 +92,12 @@ struct Node {
   std::string name;
   std::shared_ptr<Node> next;
 
-  Node(std::string n) : name(n) {
+  // Use pass-by-value: 1 copy + 1 move
+  //
+  // Avoid duplicationg:
+  //   Node(const std::string& n)
+  //   Node(std::string&& n)
+  Node(std::string n) : name(std::move(n)) {
     std::cout << "[Ctor] node: " << name << "\n";
   }
 
@@ -100,11 +105,10 @@ struct Node {
 };
 
 void test_smart_pointer() {
-  using std::make_shared;
-
   std::cout << "--- Create two nodes ---\n";
-  std::shared_ptr<Node> a = make_shared<Node>("A");  // a.use_count == 1
-  auto b = make_shared<Node>("B");                   // b.use_count == 1
+  std::shared_ptr<Node> a =
+      std::shared_ptr<Node>(new Node("A"));  // a.use_count == 1
+  auto b = std::make_shared<Node>("B");      // b.use_count == 1
 
   std::weak_ptr<Node> wa = a;
   std::weak_ptr<Node> wb = b;
@@ -123,9 +127,11 @@ void test_smart_pointer() {
             << "\n";
 
   std::cout << "--- Reset local shared_ptrs a & b ---\n";
-  a.reset();  // a stops owning the object -> strong_count decrease by 1
+  // NOTE: reset() sets the shared pointer to null, and decrease strong/shared
+  // count by 1.
+  a.reset();
   b.reset();
-  if (!a) {
+  if (a == nullptr) {
     std::cout << "After reset locals, a is nullptr, a.use_count="
               << a.use_count() << "\n";
   }
@@ -133,6 +139,8 @@ void test_smart_pointer() {
             << ", wb.use_count=" << wb.use_count() << "\n";
 
   std::cout << "--- Break the cycle by resetting internal 'next' links ---\n";
+  // NOTE: lock atomically tries to convert a weak reference into a
+  // shared_ptr.
   if (auto sa = wa.lock()) {
     sa->next.reset();  // release shared_ptr to B
   }
@@ -146,7 +154,6 @@ void test_smart_pointer() {
 // -----------
 // Allocator
 // -----------
-
 template <typename T>
 class CAllocator {
  public:
@@ -318,8 +325,8 @@ void test_allocator() {
 // (47) Alignment - avoid false sharing for hot counters
 //////////////////////////////////////////////////////////////
 
-struct alignas(64) AlignedCounter {
-  std::atomic<size_t> value{0};
+struct AlignedCounter {
+  alignas(64) std::atomic<size_t> value{0};
 };
 
 //////////////////////////////////////////////////////////////
@@ -339,12 +346,16 @@ class TextLog : public LogEntry {
 
  public:
   TextLog(const char* m) {
+    std::cout << "[Ctor] Log\n";
     size_t len = std::strlen(m) + 1;
     msg = new char[len];
     std::strncpy(msg, m, len);
   }
 
-  ~TextLog() { delete[] msg; }
+  ~TextLog() {
+    std::cout << "[Dtor] Log\n";
+    delete[] msg;
+  }
 
   void write(FILE* f) const override { fprintf(f, "%s\n", msg); }
 };
@@ -371,6 +382,7 @@ class LogPool {
     }
   }
 
+  // T is of type |LogEntry|
   template <typename T, typename... Args>
   T* create(Args&&... args) {
     if (free_list.empty()) throw std::bad_alloc();
@@ -385,7 +397,7 @@ class LogPool {
   void destroy(LogEntry* entry) {
     if (!entry) return;
 
-    entry->~LogEntry();  // virturl dctor required
+    entry->~LogEntry();  // virtual dctor required
     free_list.push_back(entry);
   }
 };
@@ -394,29 +406,34 @@ class LogPool {
 // (39-44) RAII handle + custom deleter
 //////////////////////////////////////////////////////////////
 
-class LogHandle {
+// NOTE: this class' only job is wrapping a pointer and calling a custom
+// cleanup method in destructor, a smart pointer with custom deleter is a
+// better solution.
+/*
+class LogHandler {
  private:
   LogEntry* entry;
   LogPool* pool;
 
  public:
-  LogHandle(LogEntry* e, LogPool* p) : entry(e), pool(p) {}
+  LogHandler(LogEntry* e, LogPool* p) : entry(e), pool(p) {}
 
-  ~LogHandle() {
+  ~LogHandler() {
     if (entry) pool->destroy(entry);
   }
 
   LogEntry* operator->() { return entry; }
 
   // move only (unique ownership)
-  LogHandle(const LogHandle&) = delete;
-  LogHandle& operator=(const LogHandle&) = delete;
+  LogHandler(const LogHandler&) = delete;
+  LogHandler& operator=(const LogHandler&) = delete;
 
-  LogHandle(LogHandle&& other) noexcept : entry(other.entry), pool(other.pool) {
+  LogHandler(LogHandler&& other) noexcept
+      : entry(other.entry), pool(other.pool) {
     other.entry = nullptr;
   }
 
-  LogHandle& operator=(LogHandle&& other) noexcept {
+  LogHandler& operator=(LogHandler&& other) noexcept {
     if (this == &other) return *this;
 
     if (entry) pool->destroy(entry);
@@ -428,6 +445,7 @@ class LogHandle {
     return *this;
   }
 };
+*/
 
 //////////////////////////////////////////////////////////////
 // (2) Custom deleter - wrapper FILE*
@@ -457,6 +475,14 @@ FilePtr open_file(const char* path) {
   return FilePtr(fopen(path, "w"), &fclose);
 }
 
+struct PoolDeleter {
+  LogPool* pool;
+
+  void operator()(LogEntry* log) { pool->destroy(log); }
+};
+
+using LogPtr = std::unique_ptr<LogEntry, PoolDeleter>;
+
 //////////////////////////////////////////////////////////////
 // Logger system
 //////////////////////////////////////////////////////////////
@@ -464,7 +490,9 @@ FilePtr open_file(const char* path) {
 class Logger {
  private:
   LogPool pool;
-  std::vector<LogHandle> queue;
+  // NOTE: Deprecated by |LogPtr|
+  // std::vector<LogHandler> queue;
+  std::vector<LogPtr> queue;
 
   AlignedCounter write_count;  // avoid false sharing
 
@@ -474,12 +502,13 @@ class Logger {
   Logger(size_t pool_size, const char* path)
       : pool(pool_size), file(open_file(path)) {}
 
+  // NOTE: T is of type |LogEntry|
   template <typename T, typename... Args>
   void log(Args&&... args) {
     // allocate log entry from pool
-    LogEntry* e = pool.create<T>(std::forward<Args>(args)...);
+    auto* raw = pool.create<T>(std::forward<Args>(args)...);
 
-    queue.emplace_back(e, &pool);  // RAII ownership
+    queue.emplace_back(raw, PoolDeleter{&pool});  // RAII ownership
 
     write_count.value.fetch_add(1, std::memory_order_relaxed);
   }
