@@ -20,10 +20,10 @@ class Functor {
  public:
   Functor() = default;
   Functor(const Functor&) { std::cout << "[Copy ctor] functor\n"; }
-  Functor(Functor&&) { std::cout << "[Move ctro] functor\n"; }
+  Functor(Functor&&) { std::cout << "[Move ctor] functor\n"; }
 
   void operator()(std::string& msg) {
-    std::cout << "t1 says: " << msg << "\n";
+    std::cout << "thread says: " << msg << "\n";
     msg = "here is another message";
   }
 };
@@ -42,7 +42,7 @@ void work(int id, const std::string& name) {
   std::cout << "Thread " << id << " done\n";
 }
 
-void increment(int& x) {
+void increment_thread(int& x) {
   for (int i = 0; i < 5; ++i) {
     ++x;
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -82,7 +82,7 @@ int test_thread() {
   std::thread t4(work, 2, "Beta");
 
   int shared_value = 0;
-  std::thread t5(increment, std::ref(shared_value));
+  std::thread t5(increment_thread, std::ref(shared_value));
 
   std::cout << "\nBefore joining, joinable states:\n";
   std::cout << "t3.joinable(): " << t3.joinable() << "\n";
@@ -194,7 +194,7 @@ void test_mutex_and_lock_guard() {
 }
 
 // ------------
-// Condition variable
+// Condition Variable
 // Design Pattern: Producer-Consumer Pattern
 // ------------
 
@@ -376,7 +376,7 @@ void test_deadlock() {
 
 std::atomic<int> counter{0};
 
-void increment2() {
+void increment() {
   for (int i = 0; i < 1000; ++i) {
     counter.fetch_add(1, std::memory_order_relaxed);
   }
@@ -417,6 +417,64 @@ void writer2() {
 void reader2() {
   while (!ready2.load(std::memory_order_acquire));  // spin until published
   std::cout << "Read data = " << d.load(std::memory_order_relaxed) << "\n";
+}
+
+std::atomic<int> counter2{0};
+// cas: compare and swap
+// compare_exchange_weak(T& expected, T desired, ...)
+//
+// if (x == expected) {
+//   x = desired;
+//   return true;
+// } else {
+//   expected = x;
+//   return false;
+// }
+void increment2(int id) {
+  for (int i = 0; i < 1000; ++i) {
+    int expected = counter2.load(std::memory_order_relaxed);
+
+    while (!counter2.compare_exchange_weak(expected,
+                                           expected + 1,
+                                           std::memory_order_release,
+                                           std::memory_order_relaxed)) {
+      // CAS failed
+      //
+      // IMPORTANT: compare_exchange_weak automatically updates the
+      // |expected| to the actual current value
+      std::cout << "Thread #" << id << " failed. New expected=" << expected
+                << "\n";
+    }
+  }
+}
+
+struct Node {
+  int value;
+  Node* next;
+};
+
+std::atomic<Node*> head;
+
+void push_stack(int value) {
+  Node* node = new Node();
+  node->value = value;
+  node->next = head.load(std::memory_order_relaxed);
+
+  while (!head.compare_exchange_weak(
+      node->next, node, std::memory_order_release, std::memory_order_relaxed)) {
+    // CAS failed
+  }
+}
+
+void print_stack(std::atomic<Node*>& head) {
+  Node* curr = head.load();
+
+  while (curr) {
+    std::cout << curr->value << "->";
+    curr = curr->next;
+  }
+
+  std::cout << "\n";
 }
 
 void spawn_threads(int num_threads) {
@@ -492,7 +550,7 @@ void spawn_threads3() {
 void test_atomic_and_memory_order_model() {
   std::cout << "--- atomic ---\n";
   std::vector<std::thread> threads;
-  for (int i = 0; i < 10; ++i) threads.emplace_back(increment2);
+  for (int i = 0; i < 10; ++i) threads.emplace_back(increment);
   for (auto& t : threads) t.join();
   std::cout << "Final counter = " << counter << "\n";
 
@@ -503,11 +561,34 @@ void test_atomic_and_memory_order_model() {
   std::cout << shared.value << "\n";
   */
 
-  std::cout << "--- atomic operations ---\n";
-  std::atomic<int> x{10};
-  int expected = 10;
-  bool ok = x.compare_exchange_weak(expected, 20);
-  std::cout << "Result: " << ok << ", x = " << x << "\n";
+  {
+    std::cout << "--- atomic operations ---\n";
+
+    std::atomic<int> x{10};
+    int expected = 10;
+    bool ok = x.compare_exchange_weak(expected, 20);
+    std::cout << "Result: " << ok << ", x = " << x << "\n";
+
+    std::thread t1(increment2, 1);
+    std::thread t2(increment2, 2);
+    t1.join();
+    t2.join();
+    std::cout << "Final = " << counter2.load() << "\n";
+
+    std::thread t3([]() {
+      for (int i = 0; i < 100; ++i) {
+        push_stack(i);
+      }
+    });
+    std::thread t4([]() {
+      for (int i = 100; i < 200; ++i) {
+        push_stack(i);
+      }
+    });
+    t3.join();
+    t4.join();
+    print_stack(head);
+  }
 
   {
     std::cout << "--- atomic_flag (spinlock) ---\n";
@@ -570,14 +651,14 @@ int compute_square(int x) {
 
 void test_promise_and_future() {
   std::promise<int> prom;
-  std::future<int> fut2 = prom.get_future();
+  std::future<int> fut = prom.get_future();
   std::thread t(
       [&prom](int x) {
         int val = compute_square(x);
         prom.set_value(val);
       },
       6);
-  std::cout << "Result from promise: " << fut2.get() << "\n";
+  std::cout << "Result from promise: " << fut.get() << "\n";
   t.join();
 }
 
@@ -801,7 +882,7 @@ void test_read_write_lock_pattern() {
   cache.update("AAPL", 200);
 
   std::vector<std::thread> readers;
-  for (int i = 0; i < 10; ++i) {
+  for (int i = 0; i < 3; ++i) {
     readers.emplace_back([&] { std::cout << cache.get("AAPL") << "\n"; });
   }
 
