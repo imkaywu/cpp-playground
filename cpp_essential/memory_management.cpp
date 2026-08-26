@@ -1,455 +1,442 @@
-#include <atomic>
 #include <cassert>
-#include <cstdio>
 #include <cstring>
 #include <iostream>
-#include <memory>
-#include <new>
+#include <string>
 #include <vector>
-
-#include "benchmark.cpp"
 
 namespace MM {
 
-// -----------
-// new[] / delete[]
-// -----------
-class Base {
- public:
-  Base() { std::cout << "[Ctor] Base\n"; }
-  ~Base() { std::cout << "[Dtor] Base\n"; }
-  int n;
+// ============================================================
+// 1. STACK VS HEAP
+// ============================================================
+
+struct SmallObject {
+  int x;
+  int y;
+
+  SmallObject(int x, int y) : x(x), y(y) {
+    std::cout << "[Ctor] SmallObject\n";
+  }
+
+  ~SmallObject() { std::cout << "[Dtor] SmallObject\n"; }
 };
 
-void test_new_delete_internal() {
-  // Base* p = new Base[3];
-  // delete[] p;
+void example_01_stack_vs_heap() {
+  std::cout << "\n=== 1. Stack vs Heap ===\n";
 
-  // Solution 1: over allocation
-  size_t n = 3;
-  const size_t WORDSIZE = 8;  // for 64 bit system
+  // Local object:
+  // lifetime is tied to the scope.
+  SmallObject stack_object(1, 2);
 
-  char* head = (char*)operator new(WORDSIZE + n * sizeof(Base));
-  Base* p = (Base*)(head + WORDSIZE);
-  *(size_t*)head = n;
-  for (auto i = 0; i < n; ++i) {
-    new (p + i) Base();
-  }
+  // Dynamically allocated object:
+  // lifetime continues until delete.
+  SmallObject* heap_object = new SmallObject(3, 4);
 
-  size_t n2 = *(size_t*)((char*)p - WORDSIZE);
-  for (auto i = 0; i < n2; ++i) {
-    (p + i)->~Base();
-  }
-  operator delete(head);
+  std::cout << "stack_object address = " << &stack_object << "\n";
 
-  // Solution 2: associative array: watch p2z7SJ5MWV8
+  std::cout << "heap_object address = " << heap_object << "\n";
+
+  delete heap_object;
+
+  // Important:
+  // "stack vs heap" is about storage duration / allocation strategy,
+  // NOT about whether the object is automatically destroyed.
 }
 
-// -----------
-// RAII
-// -----------
-class FileRAII {
-  FILE* file;
+// ============================================================
+// 2. new / delete
+// ============================================================
 
+class Widget {
  public:
-  FileRAII(const char* name, const char* mode) {
-    file = fopen(name, mode);
-    if (!file) throw std::runtime_error("Failed to open file");
-    std::cout << "File opended\n";
+  Widget(int value) : value(value) {
+    std::cout << "[Ctor] Widget (" << value << ")\n";
   }
 
-  ~FileRAII() {
+  ~Widget() { std::cout << "[Dtor] Widget (" << value << ")\n"; }
+
+ private:
+  int value;
+};
+
+void example_02_new_delete() {
+  std::cout << "\n=== 2. new / delete ===\n";
+
+  // new does two things:
+  // 1. allocate raw memory
+  // 2. construct the object
+  Widget* p = new Widget(42);
+
+  // delete does two things:
+  // 1. call destructor
+  // 2. release memory
+  delete p;
+
+  // Arrays require new[]/delete[].
+  Widget* array = new Widget[3]{Widget(1), Widget(2), Widget(3)};
+
+  delete[] array;
+
+  // Matching rules:
+  //
+  // new       -> delete
+  // new[]     -> delete[]
+}
+
+// ============================================================
+// 3. Memory Leak
+// ============================================================
+
+void create_leak() {
+  int* p = new int(42);
+
+  // BUG:
+  // p is lost without delete.
+  //
+  // The allocated memory can no longer be reached.
+  //
+  // This is a memory leak.
+  (void)p;
+}
+
+void example_03_memory_leak() {
+  std::cout << "\n=== 3. Memory Leak ===\n";
+
+  create_leak();
+
+  std::cout << "create_leak() intentionally leaked memory\n";
+
+  // In a real program, use sanitizers:
+  //
+  // -fsanitize=address
+  //
+  // to detect many leaks and memory errors.
+}
+
+// ============================================================
+// 4. RAII
+// ============================================================
+
+class File {
+ public:
+  explicit File(const char* path) : file(std::fopen(path, "w")) {
+    if (!file) {
+      throw std::runtime_error("failed to open file");
+    }
+    std::cout << "File opened\n";
+  }
+
+  ~File() {
     if (file) {
-      fclose(file);
+      std::fclose(file);
       std::cout << "File closed\n";
     }
   }
 
-  void write(const char* msg) { fprintf(file, "%s\n", msg); }
+  void write(const char* text) { std::fprintf(file, "%s\n", text); }
 
-  // disable copying (if resource is unique)
-  FileRAII(const FileRAII&) = delete;
-  FileRAII& operator=(const FileRAII&) = delete;
+  // A FILE* represents a unique resource.
+  // Copying would be dangerous because both obejcts
+  // might try to fclose() // the same FILE*.
+  File(const File&) = delete;
+  File& operator=(const File&) = delete;
+
+ private:
+  std::FILE* file;
 };
 
-void test_RAII() {
+void example_04_raii() {
+  std::cout << "\n=== 4. RAII ===\n";
+
   try {
-    FileRAII file("out.txt", "w");
+    File file("test.txt");
+
     file.write("Hello RAII");
 
-    // exception safety: destructor always runs, even if an exception is thrown
-    throw std::runtime_error("Simulated exception");
+    // Destructor still runs when exception is throw.
+    throw std::runtime_error("something went wrong");
 
-  } catch (...) {
-    std::cout << "Exception caught\n";
+  } catch (const std::exception& e) {
+    std::cout << "Caught exception: " << e.what() << "\n";
+  }
+
+  /*
+    The important idea:
+
+    {
+        File file;
+        ...
+    }
+
+    becomes conceptually:
+
+        construct resource
+
+        ...
+
+        destroy resource
+
+    even when leaving the scope because of an exception.
+  */
+}
+
+// ============================================================
+// 5. SMART POINTER OVERVIEW
+// ============================================================
+
+void example_05_smart_pointer_overview() {
+  std::cout << "\n=== 5. Smart Pointer Overview ===\n";
+
+  /*
+    unique_ptr
+    ----------
+    Exactly one owner.
+
+        unique_ptr ---> object
+
+
+    shared_ptr
+    ----------
+    Multiple owners.
+
+        shared_ptr --+
+                     |
+        shared_ptr --+--> object
+
+
+    weak_ptr
+    --------
+    Non-owning reference.
+
+        weak_ptr -------> object
+
+    It does NOT keep the object alive.
+  */
+
+  auto unique = std::make_unique<int>(10);
+
+  auto shared1 = std::make_shared<int>(20);
+  auto shared2 = shared1;
+
+  std::weak_ptr<int> weak = shared1;
+
+  std::cout << "shared use_count = " << shared1.use_count() << "\n";
+
+  std::cout << "weak use_count = " << weak.use_count() << "\n";
+
+  (void)unique;
+  (void)shared2;
+}
+
+// ============================================================
+// 6. std::unique_ptr
+// ============================================================
+
+struct Resource {
+  Resource(int id) : id(id) { std::cout << "[Ctor] Resource " << id << "\n"; }
+
+  ~Resource() { std::cout << "[Dtor] Resource " << id << "\n"; }
+
+  int id;
+};
+
+void consume_unique(std::unique_ptr<Resource> resource) {
+  std::cout << "consume_unique owns Resource " << resource->id << "\n";
+}
+
+void example_06_unique_ptr() {
+  std::cout << "\n=== 6. std::unique_ptr ===\n";
+
+  // Preferred way.
+  auto resource = std::make_unique<Resource>(1);
+
+  // Ownership transfer.
+  auto another = std::move(resource);
+
+  assert(resource == nullptr);
+  assert(another != nullptr);
+
+  // unique_ptr cannot be copied.
+  //
+  // auto copy = another; // ERROR
+
+  // unique_ptr can be moved.
+  consume_unique(std::move(another));
+
+  assert(another == nullptr);
+
+  // unique_ptr makes ownership explicit in APIs.
+  auto r = std::make_unique<Resource>(2);
+  consume_unique(std::move(r));
+}
+
+// ============================================================
+// 7. std::shared_ptr
+// ============================================================
+
+void example_07_shared_ptr() {
+  std::cout << "\n=== 7. std::shared_ptr ===\n";
+
+  auto a = std::make_shared<Resource>(10);
+
+  std::cout << "count = " << a.use_count() << "\n";
+
+  {
+    auto b = a;
+
+    std::cout << "count = " << a.use_count() << "\n";
+
+    {
+      auto c = b;
+
+      std::cout << "count = " << a.use_count() << "\n";
+    }
+
+    std::cout << "after c dies, count = " << a.use_count() << "\n";
+  }
+
+  std::cout << "after b dies, count = " << a.use_count() << "\n";
+
+  // Object is destoryed when the final shared_ptr disappears.
+}
+
+// ============================================================
+// 8. std::weak_ptr
+// ============================================================
+
+struct Node {
+  explicit Node(std::string name) : name(std::move(name)) {
+    std::cout << "[Ctor] Node " << this->name << "\n";
+  }
+
+  ~Node() { std::cout << "[Dtor] Node " << name << "\n"; }
+
+  std::string name;
+
+  std::shared_ptr<Node> next;
+};
+
+void example_08_weak_ptr() {
+  std::cout << "\n=== 8. std::weak_ptr ===\n";
+
+  auto node = std::make_shared<Node>("A");
+
+  std::weak_ptr<Node> observer = node;
+
+  std::cout << "strong count = " << node.use_count() << "\n";
+
+  std::cout << "weak count = " << observer.use_count() << "\n";
+
+  // weak_ptr does NOT own the object.
+  // We must call lock() to temporarily obtain ownership.
+
+  if (auto locked = observer.lock()) {
+    std::cout << "Object is alive: " << locked->name << "\n";
+  }
+
+  node.reset();
+
+  // Object is now destroyed.
+  // observer still exists, but it doesn't keep Node alive.
+  if (observer.expired()) {
+    std::cout << "Object is already destroyed\n";
+  }
+
+  if (auto locked = observer.lock()) {
+    // won't happen
+    std::cout << locked->name << "\n";
+  } else {
+    std::cout << "lock() failed\n";
   }
 }
 
-// -----------
-// Smart pointer
-// -----------
-struct Node {
-  std::string name;
-  std::shared_ptr<Node> next;
+// ============================================================
+// 9. shared_ptr CYCLE
+// ============================================================
 
-  // Use pass-by-value: 1 copy + 1 move
-  //
-  // Avoid duplicationg:
-  //   Node(const std::string& n)
-  //   Node(std::string&& n)
-  Node(std::string n) : name(std::move(n)) {
-    std::cout << "[Ctor] node: " << name << "\n";
+struct CycleNode {
+  std::string name;
+
+  explicit CycleNode(std::string name) : name(std::move(name)) {
+    std::cout << "[Ctor] CycleNode " << this->name << "\n";
   }
 
-  ~Node() { std::cout << "[Dtor] node: " << name << "\n"; }
+  ~CycleNode() { std::cout << "[Dtor] CycleNode " << name << "\n"; }
+
+  std::shared_ptr<CycleNode> next;
 };
 
-void test_smart_pointer() {
-  std::cout << "--- Create two nodes ---\n";
-  std::shared_ptr<Node> a =
-      std::shared_ptr<Node>(new Node("A"));  // a.use_count == 1
-  auto b = std::make_shared<Node>("B");      // b.use_count == 1
+void example_09_shared_ptr_cycle() {
+  std::cout << "\n=== 9. shared_ptr Cycle ===\n";
 
-  std::weak_ptr<Node> wa = a;
-  std::weak_ptr<Node> wb = b;
+  auto a = std::make_shared<CycleNode>("A");
+  auto b = std::make_shared<CycleNode>("B");
 
-  std::cout << "Initial counts: a=" << a.use_count() << ", b=" << b.use_count()
-            << "\n";
+  std::weak_ptr<CycleNode> wa = a;
+  std::weak_ptr<CycleNode> wb = b;
 
-  std::cout << "--- Link A -> B ---\n";
   a->next = b;
-  std::cout << "After A -> B, a=" << a.use_count() << ", b=" << b.use_count()
-            << "\n";
-
-  std::cout << "--- Link B -> A (create cycle) ---\n";
   b->next = a;
-  std::cout << "After B -> A, a=" << a.use_count() << ", b=" << b.use_count()
-            << "\n";
 
-  std::cout << "--- Reset local shared_ptrs a & b ---\n";
-  // NOTE: reset() sets the shared pointer to null, and decrease strong/shared
-  // count by 1.
+  std::cout << "a count = " << a.use_count() << "\n";
+  std::cout << "b count = " << b.use_count() << "\n";
+
   a.reset();
   b.reset();
-  if (a == nullptr) {
-    std::cout << "After reset locals, a is nullptr, a.use_count="
-              << a.use_count() << "\n";
-  }
-  std::cout << "After reset locals, wa.use_count=" << wa.use_count()
-            << ", wb.use_count=" << wb.use_count() << "\n";
 
-  std::cout << "--- Break the cycle by resetting internal 'next' links ---\n";
-  // NOTE: lock atomically tries to convert a weak reference into a
-  // shared_ptr.
-  if (auto sa = wa.lock()) {
-    sa->next.reset();  // release shared_ptr to B
-  }
-  if (auto sb = wb.lock()) {
-    sb->next.reset();  /// release shared_ptr to A
-  }
-  std::cout << "After breaking internal links, wa.use_count=" << wa.use_count()
-            << ", wb.use_count=" << wb.use_count() << "\n";
-}
+  std::cout << "CycleNode object not destroyed yet\n";
 
-// -----------
-// Allocator
-// -----------
-template <typename T>
-class CAllocator {
- public:
-  using value_type = T;
+  /*
+    No destructors run.
 
-  CAllocator() = default;
+    Why?
 
-  template <typename U>
-  CAllocator(const CAllocator<U>&) noexcept {}
+    A -> B
+    B -> A
 
-  ~CAllocator() = default;
+    Even though local a and b are gone,
+    the objects still own each other.
 
-  T* allocate(size_t n) {
-    if (n > max_size()) {
-      throw std::bad_alloc();
-    }
+    Reference counts never reach zero.
+  */
 
-    void* ptr = std::malloc(n * sizeof(T));
-
-    if (ptr == nullptr) {
-      throw std::bad_alloc();
-    }
-
-    return static_cast<T*>(ptr);
+  if (auto locked = wa.lock()) {
+    locked->next.reset();
   }
 
-  void deallocate(T* ptr, size_t) noexcept { free(ptr); }
-
-  constexpr size_t max_size() const noexcept {
-    return static_cast<std::size_t>(-1) / sizeof(T);
-  }
-
-  template <typename U>
-  struct rebind {
-    using other = CAllocator<U>;
-  };
-
-  template <typename U>
-  constexpr bool operator==(const CAllocator<U>&) const noexcept {
-    return true;
-  }
-
-  template <typename U>
-  constexpr bool operator!=(const CAllocator<U>&) const noexcept {
-    return false;
-  }
-};
-
-template <typename T>
-class LinearAllocator {
- public:
-  using value_type = T;
-
- public:
-  explicit LinearAllocator(size_t size)
-      : block(std::make_shared<Block>(size)) {}
-
-  LinearAllocator(const LinearAllocator&) = default;
-
-  // NOTE: template constructor:
-  //   Containers internally rebind allocators to other types
-  //
-  //   std::list<int>
-  //
-  //   internally allocates `_List_node<int>`
-  //
-  //   STL needs `LinearAllocator<_List_node<int>>` constructed from
-  //   `LinearAllocator<int>>`
-  template <typename U>
-  LinearAllocator(const LinearAllocator<U>& other) noexcept
-      : block(other.block) {}
-
-  ~LinearAllocator() = default;
-
-  // NOTE: compiler attribute, warning if caller ignores return value.
-  [[nodiscard]]
-  T* allocate(size_t n) {
-    size_t bytes = n * sizeof(T);
-    size_t alignment = alignof(T);
-
-    uintptr_t addr = reinterpret_cast<uintptr_t>(block->current);
-
-    size_t padding = (alignment - (addr % alignment)) % alignment;
-
-    if (block->used + padding + bytes > block->size) {
-      throw std::bad_alloc();
-    }
-
-    addr += padding;
-
-    T* result = reinterpret_cast<T*>(addr);
-
-    block->current = reinterpret_cast<char*>(addr + bytes);
-
-    block->used += padding + bytes;
-
-    return result;
-  }
-
-  void deallocate(T*, size_t) noexcept {
-    // NOTE: Linear allocator does not support individual deallocation.
-    // no-op
-  }
-
-  void reset() {
-    block->current = block->start;
-    block->used = 0;
-  }
-
-  // NOTE: Given allocator for T, create equivalent allocator for U
-  //   LinearAllocator<int> -> LinearAllocator<ListNode<int>>
-  template <typename U>
-  struct rebind {
-    using other = LinearAllocator<U>;
-  };
-
-  // NOTE: Containers need to know "can I transfer memory ownership between
-  // these containers safely?"
-  //
-  // allocators with the same memory block are interchangeable
-  bool operator==(const LinearAllocator& other) const noexcept {
-    return block == other.block;
-  }
-
-  bool operator!=(const LinearAllocator& other) const noexcept {
-    return !(*this == other);
-  }
-
- private:
-  struct BlockDeleter {
-    void operator()(void* ptr) const noexcept { ::operator delete(ptr); }
-  };
-
-  struct Block {
-    std::unique_ptr<void, BlockDeleter> memory;
-
-    char* start = nullptr;
-    char* current = nullptr;
-
-    size_t size = 0;
-    size_t used = 0;
-
-    explicit Block(size_t sz)
-        : memory(::operator new(sz)),
-          start(static_cast<char*>(memory.get())),
-          current(start),
-          size(sz) {}
-  };
-
-  std::shared_ptr<Block> block;
-
-  // NOTE: grants friendship between ALL specializations:
-  //    LinearAllocator<int>
-  //    LinearAllocator<double>
-  // because the rebinding constructors need access to |block|.
-  template <typename>
-  friend class LinearAllocator;
-};
-
-void test_allocator() {
-  { benchmark_vector_push("CAllocator", CAllocator<int>{}, 1'000'000); }
-  {
-    benchmark_vector_push(
-        "LinearAllocator", LinearAllocator<int>(1024 * 1024 * 64), 1'000'000);
+  if (auto locked = wb.lock()) {
+    locked->next.reset();
   }
 }
 
-//////////////////////////////////////////////////////////////
-// (47) Alignment - avoid false sharing for hot counters
-//////////////////////////////////////////////////////////////
+struct NonOwningNode {
+  std::string name;
 
-struct AlignedCounter {
-  alignas(64) std::atomic<size_t> value{0};
+  std::shared_ptr<NonOwningNode> next;
+  std::weak_ptr<NonOwningNode> prev;
 };
 
-//////////////////////////////////////////////////////////////
-// (48) Memory layout - polymorphic log entry
-//////////////////////////////////////////////////////////////
+void example_10_break_cycle_with_weak_ptr() {
+  std::cout << "\n=== 10. Break Cycle with weak_ptr ===\n";
 
-class LogEntry {
- public:
-  virtual void write(FILE* f) const = 0;
-  virtual ~LogEntry() = default;
-};
+  auto a = std::make_shared<NonOwningNode>();
+  auto b = std::make_shared<NonOwningNode>();
 
-// Derived adds extra fields -> impacts layout
-class TextLog : public LogEntry {
- private:
-  char* msg;
+  a->next = b;
 
- public:
-  TextLog(const char* m) {
-    std::cout << "[Ctor] Log\n";
-    size_t len = std::strlen(m) + 1;
-    msg = new char[len];
-    std::strncpy(msg, m, len);
-  }
+  // prev does not own a.
+  b->prev = a;
 
-  ~TextLog() {
-    std::cout << "[Dtor] Log\n";
-    delete[] msg;
-  }
+  std::cout << "a count = " << a.use_count() << "\n";
 
-  void write(FILE* f) const override { fprintf(f, "%s\n", msg); }
-};
+  std::cout << "b count = " << b.use_count() << "\n";
 
-//////////////////////////////////////////////////////////////
-// (45,46) Custom allocator (pool) + placement new
-//////////////////////////////////////////////////////////////
+  // Both objects are correctly destroyed.
+}
 
-class LogPool {
- private:
-  std::vector<void*> free_list;
-
- public:
-  LogPool(size_t capacity) {
-    free_list.reserve(capacity);
-    for (size_t i = 0; i < capacity; ++i) {
-      free_list.push_back(::operator new(256));  // fixed block
-    }
-  }
-
-  ~LogPool() {
-    for (void* p : free_list) {
-      ::operator delete(p);
-    }
-  }
-
-  // T is of type |LogEntry|
-  template <typename T, typename... Args>
-  T* create(Args&&... args) {
-    if (free_list.empty()) throw std::bad_alloc();
-
-    void* mem = free_list.back();
-    free_list.pop_back();
-
-    // placement new
-    return new (mem) T(std::forward<Args>(args)...);
-  }
-
-  void destroy(LogEntry* entry) {
-    if (!entry) return;
-
-    entry->~LogEntry();  // virtual dctor required
-    free_list.push_back(entry);
-  }
-};
-
-//////////////////////////////////////////////////////////////
-// (39-44) RAII handle + custom deleter
-//////////////////////////////////////////////////////////////
-
-// NOTE: this class' only job is wrapping a pointer and calling a custom
-// cleanup method in destructor, a smart pointer with custom deleter is a
-// better solution.
-/*
-class LogHandler {
- private:
-  LogEntry* entry;
-  LogPool* pool;
-
- public:
-  LogHandler(LogEntry* e, LogPool* p) : entry(e), pool(p) {}
-
-  ~LogHandler() {
-    if (entry) pool->destroy(entry);
-  }
-
-  LogEntry* operator->() { return entry; }
-
-  // move only (unique ownership)
-  LogHandler(const LogHandler&) = delete;
-  LogHandler& operator=(const LogHandler&) = delete;
-
-  LogHandler(LogHandler&& other) noexcept
-      : entry(other.entry), pool(other.pool) {
-    other.entry = nullptr;
-  }
-
-  LogHandler& operator=(LogHandler&& other) noexcept {
-    if (this == &other) return *this;
-
-    if (entry) pool->destroy(entry);
-
-    entry = other.entry;
-    pool = other.pool;
-    other.entry = nullptr;
-
-    return *this;
-  }
-};
-*/
-
-//////////////////////////////////////////////////////////////
-// (2) Custom deleter - wrapper FILE*
-//////////////////////////////////////////////////////////////
+// ============================================================
+// 11. CUSTOM DELETERS
+// ============================================================
 
 // A deleter is used mainly with smart pointers, which decides what happens when
 // pointer dies:
@@ -465,92 +452,563 @@ class LogHandler {
 //   sqlite3_close(db)
 //   custom pool return
 
-// `int fclose(FILE* stream);`
-using FilePtr = std::unique_ptr<FILE, int (*)(FILE*)>;  // 2nd arg: function
-                                                        // pointer
-// Alternative:
-// using FilePtr = std::unique_ptr<FILE, decltype(&fclose)>;
+// void deleter(T* ptr) -> int (*)(FILE*)
+using FilePtr = std::unique_ptr<std::FILE, decltype(&std::fclose)>;
 
 FilePtr open_file(const char* path) {
-  return FilePtr(fopen(path, "w"), &fclose);
-}
+  std::FILE* file = std::fopen(path, "w");
 
-struct PoolDeleter {
-  LogPool* pool;
-
-  void operator()(LogEntry* log) { pool->destroy(log); }
-};
-
-using LogPtr = std::unique_ptr<LogEntry, PoolDeleter>;
-
-//////////////////////////////////////////////////////////////
-// Logger system
-//////////////////////////////////////////////////////////////
-
-class Logger {
- private:
-  LogPool pool;
-  // NOTE: Deprecated by |LogPtr|
-  // std::vector<LogHandler> queue;
-  std::vector<LogPtr> queue;
-
-  AlignedCounter write_count;  // avoid false sharing
-
-  FilePtr file;
-
- public:
-  Logger(size_t pool_size, const char* path)
-      : pool(pool_size), file(open_file(path)) {}
-
-  // NOTE: T is of type |LogEntry|
-  template <typename T, typename... Args>
-  void log(Args&&... args) {
-    // allocate log entry from pool
-    auto* raw = pool.create<T>(std::forward<Args>(args)...);
-
-    queue.emplace_back(raw, PoolDeleter{&pool});  // RAII ownership
-
-    write_count.value.fetch_add(1, std::memory_order_relaxed);
+  if (!file) {
+    throw std::runtime_error("failed to open file");
   }
 
-  void flush() {
-    for (auto& h : queue) {
-      h->write(file.get());
+  return FilePtr(file, &std::fclose);
+}
+
+void example_11_custom_deleter() {
+  std::cout << "\n=== 11. Custom Deleter ===\n";
+
+  {
+    auto file = open_file("test.txt");
+
+    std::fprintf(file.get(), "Hello custom deleter\n");
+
+    // When file goes out of scope:
+    //
+    // fclose(file.get()) is automatically called.
+  }
+
+  /*
+    unique_ptr normally does:
+
+        delete ptr;
+
+    But FILE* requires:
+
+        fclose(ptr);
+
+    Therefore:
+
+        unique_ptr<T, Deleter>
+
+    lets us customize cleanup.
+
+    Another common example:
+
+    malloc() -> free()
+
+    rather than:
+
+    malloc() -> delete
+  */
+}
+
+// ============================================================
+// 12. ALLOCATORS - BASIC IDEA
+// ============================================================
+
+template <typename T>
+class SimpleAllocator {
+ public:
+  using value_type = T;
+
+  T* allocate(std::size_t n) {
+    if (n > static_cast<std::size_t>(-1) / sizeof(T)) {
+      throw std::bad_alloc();
     }
 
-    queue.clear();  // triggers destruction -> return to pool
+    std::cout << "Allocating " << n * sizeof(T) << " bytes\n";
+
+    void* memory = ::operator new(n * sizeof(T));
+
+    return static_cast<T*>(memory);
   }
 
-  size_t count() const { return write_count.value.load(); }
+  void deallocate(T* ptr, std::size_t n) noexcept {
+    std::cout << "Deallocating " << n * sizeof(T) << " bytes\n";
+
+    ::operator delete(ptr);
+  }
 };
 
-//////////////////////////////////////////////////////////////
-// (1) Memory leak example (intentional bug)
-//////////////////////////////////////////////////////////////
+void example_12_allocator() {
+  std::cout << "\n=== 12. Allocator ===\n";
 
-void leak_example() {
-  TextLog* log = new TextLog("leak");  // never deleted
+  SimpleAllocator<int> allocator;
+
+  int* memory = allocator.allocate(3);
+
+  /*
+    Important:
+
+    allocate()
+    does NOT construct int objects.
+
+    It only gives us raw memory.
+  */
+
+  memory[0] = 10;
+  memory[1] = 20;
+  memory[2] = 30;
+
+  std::cout << memory[0] << "\n";
+  std::cout << memory[1] << "\n";
+  std::cout << memory[2] << "\n";
+
+  allocator.deallocate(memory, 3);
 }
 
-//////////////////////////////////////////////////////////////
-// (49,50) Dangling + invalidation pitfalls
-//////////////////////////////////////////////////////////////
+// ============================================================
+// 13. PLACEMENT new
+// ============================================================
 
-void dangerous_patterns() {
-  // dangling pointer
-  const char* p;
-  {
-    char buf[32];
-    std::strcpy(buf, "temp");
-    p = buf;
+class ExpensiveObject {
+ public:
+  explicit ExpensiveObject(int value) : value(value) {
+    std::cout << "[Ctor] ExpensiveObject " << this->value << "\n";
   }
-  // p now dangling
 
-  // vector invalidation
-  std::vector<int> v = {1, 2, 3};
-  int* ptr = &v[0];
-  v.push_back(4);  // may reallocate
-  // ptr now invalid
+  ~ExpensiveObject() {
+    std::cout << "[Dtor] ExpensiveObject " << value << "\n";
+  }
+
+  void print() const { std::cout << "value = " << value << "\n"; }
+
+ private:
+  int value;
+};
+
+void example_13_placement_new() {
+  std::cout << "\n=== 13. Placement new ===\n";
+
+  // Step 1: allocate new memory
+  void* memory = ::operator new(sizeof(ExpensiveObject));
+
+  // Step 2: construct object inside the memory.
+  ExpensiveObject* object = new (memory) ExpensiveObject(42);
+
+  // Step 3: explicitly destroy object.
+  object->~ExpensiveObject();
+
+  // Step 4: release raw memory.
+  ::operator delete(memory);
+
+  /*
+    Normal new:
+
+        new T(...)
+            |
+            +-- allocate memory
+            +-- construct object
+
+
+    Placement new:
+
+        operator new(...)
+            |
+            +-- allocate memory
+
+        placement new
+            |
+            +-- construct object
+  */
+}
+
+// ============================================================
+// 14. ALIGNMENT
+// ============================================================
+
+struct Normal {
+  char a;
+  int b;
+  double c;
+};
+
+struct Aligned {
+  alignas(64) int value;
+};
+
+void example_14_alignment() {
+  std::cout << "\n=== 14. Alignment ===\n";
+
+  std::cout << "alignof(char) = " << alignof(char) << "\n";
+
+  std::cout << "alignof(int) = " << alignof(int) << "\n";
+
+  std::cout << "alignof(double) " << alignof(double) << "\n";
+
+  std::cout << "alignof(Normal) " << alignof(Normal) << "\n";
+
+  std::cout << "sizeof(Normal) " << sizeof(Normal) << "\n";
+
+  std::cout << "alignof(Aligned) " << alignof(Aligned) << "\n";
+
+  Aligned object;
+
+  std::uintptr_t address = reinterpret_cast<std::uintptr_t>(&object);
+
+  std::cout << "address % 64 = " << address % 64 << '\n';
+  /*
+    alignas(64) means:
+
+        the object must start at an address
+        divisible by 64.
+
+    This is useful for things such as:
+
+    - SIMD
+    - cache-line alignment
+    - avoiding false sharing
+    - hardware interfaces
+  */
+}
+
+// ============================================================
+// 15. OBJECT MEMORY LAYOUT
+// ============================================================
+
+struct Empty {};
+
+struct NonVirtual {
+  void foo();
+};
+
+struct Virtual {
+  virtual void foo();
+};
+
+struct Plain {
+  char a;
+  int b;
+  double c;
+};
+
+class Base {
+ public:
+  virtual ~Base() = default;
+
+  int base_value = 1;
+};
+
+class Derived : public Base {
+ public:
+  int derived_value = 2;
+};
+
+void example_15_object_layout() {
+  std::cout << "\n=== 15. Object Memory Layout ===\n";
+
+  std::cout << "sizeof(Empty) = " << sizeof(Empty) << "\n";
+  std::cout << "sizeof(NonVirtual) = " << sizeof(NonVirtual) << "\n";
+  std::cout << "sizeof(Virtual) = " << sizeof(Virtual) << "\n";
+
+  Plain object;
+
+  std::cout << "sizeof(Plain) = " << sizeof(Plain) << "\n";
+
+  std::cout << "&object = " << static_cast<void*>(&object) << "\n";
+
+  std::cout << "&object.a = " << static_cast<void*>(&object.a) << "\n";
+
+  std::cout << "&object.b = " << static_cast<void*>(&object.b) << "\n";
+
+  std::cout << "&object.c = " << static_cast<void*>(&object.c) << "\n";
+
+  Base base;
+  Derived derived;
+
+  std::cout << "sizeof(Base) = " << sizeof(Base) << '\n';
+
+  std::cout << "sizeof(Derived) = " << sizeof(Derived) << '\n';
+
+  std::cout << "Base alignment = " << alignof(Base) << '\n';
+
+  std::cout << "Derived alignment = " << alignof(Derived) << '\n';
+
+  std::cout << "&base        = " << &base << '\n';
+
+  std::cout << "&derived     = " << &derived << '\n';
+
+  std::cout << "&base_value  = " << &base.base_value << '\n';
+
+  std::cout << "&derived_base_value = " << &derived.base_value << '\n';
+
+  std::cout << "&derived_value = " << &derived.derived_value << '\n';
+  /*
+    Plain may conceptually look like:
+
+        +----------------+
+        | char a         |
+        +----------------+
+        | padding        |
+        +----------------+
+        | int b          |
+        +----------------+
+        | double c       |
+        +----------------+
+
+    Padding exists because of alignment.
+
+    For a polymorphic object:
+
+      Base
+      |
+      0
+      ┌─────────────────────┐
+      │ vptr                │  8
+      ├─────────────────────┤
+      │ base_value          │  4
+      ├─────────────────────┤
+      │ padding             │  4
+      └─────────────────────┘
+                          16
+
+        Derived
+        |
+        0
+        ┌─────────────────────┐
+        │ vptr                │  8
+        ├─────────────────────┤
+        │ base_value          │  4
+        ├─────────────────────┤
+        │ derived_value       │  4
+        └─────────────────────┘
+                            16
+  */
+}
+
+// ============================================================
+// 16. DANGLING POINTER
+// ============================================================
+
+const int* bad_pointer() {
+  int local = 42;
+
+  // Returning the address of a local variable
+  // is dangerous.
+  return &local;
+}
+
+void example_16_dangling_pointer() {
+  std::cout << "\n=== 16. Dangling Pointer ===\n";
+
+  const int* p = bad_pointer();
+
+  /*
+      bad_pointer() returned.
+
+      local no longer exists.
+
+      Therefore p points to memory where
+      the object lifetime has ended.
+
+      p is a dangling pointer.
+
+      NEVER dereference p.
+  */
+
+  std::cout << "p is dangling and must not be dereferenced\n";
+
+  // Another very common example:
+
+  std::vector<int> values = {1, 2, 3};
+
+  int* element = &values[0];
+
+  std::cout << "Before reallocation: " << *element << "\n";
+
+  values.reserve(100);
+
+  /*
+       reserve() may move the vector's elements
+       to a different memory allocation.
+
+       element may now be dangling.
+   */
+
+  (void)element;
+}
+
+// ============================================================
+// 17. USE-AFTER-FREE
+// ============================================================
+
+void example_17_use_after_free() {
+  std::cout << "\n=== 17. Use-after-free ===\n";
+
+  int* p = new int(42);
+
+  delete p;
+
+  /*
+      p still contains an address.
+
+      But the object at that address
+      no longer exists.
+
+      Therefore:
+
+          *p
+
+      is a use-after-free.
+
+      DO NOT DO THIS.
+  */
+
+  // std::cout << *p;    // BUG
+
+  // Better:
+
+  p = nullptr;
+
+  /*
+      A null pointer clearly communicates:
+
+          "I no longer point to an object."
+  */
+}
+
+// ============================================================
+// 18. DOUBLE FREE
+// ============================================================
+
+void example_18_double_free() {
+  std::cout << "\n=== 18. Double Free ===\n";
+
+  int* p = new int(42);
+
+  delete p;
+
+  /*
+      BUG:
+
+          delete p;
+
+      again would attempt to release the same
+      allocation twice.
+
+      This is undefined behavior.
+  */
+
+  // delete p;   // BUG
+
+  // Setting the pointer to nullptr prevents this
+  // particular mistake:
+
+  p = nullptr;
+
+  delete p;  // safe: deleting nullptr does nothing
+}
+
+// ============================================================
+// 19. WHY RAII SOLVES MANY OF THESE PROBLEMS
+// ============================================================
+
+void example_19_raii_vs_raw_pointer() {
+  std::cout << "\n=== 19. RAII vs Raw Pointer ===\n";
+
+  // BAD:
+
+  /*
+      Resource* resource = new Resource(1);
+
+      if (something_goes_wrong()) {
+          return;        // LEAK
+      }
+
+      delete resource;
+  */
+
+  // GOOD:
+
+  auto resource = std::make_unique<Resource>(1);
+
+  /*
+      No explicit delete.
+
+      No leak when returning early.
+
+      No leak when exception is thrown.
+
+      Ownership is explicit.
+  */
+
+  (void)resource;
+}
+
+// ============================================================
+// 20. FINAL: SMALL POOL ALLOCATOR
+// ============================================================
+
+class ObjectPool {
+ public:
+  explicit ObjectPool(std::size_t capacity) : capacity(capacity) {
+    memory = ::operator new(capacity * sizeof(Resource));
+  }
+
+  ~ObjectPool() { ::operator delete(memory); }
+
+  Resource* create(int id) {
+    if (size >= capacity) {
+      throw std::bad_alloc();
+    }
+
+    char* start = static_cast<char*>(memory);
+
+    void* address = start + size * sizeof(Resource);
+
+    ++size;
+
+    return new (address) Resource(id);
+  }
+
+  void destroy(Resource* object) {
+    if (!object) return;
+
+    object->~Resource();
+  }
+
+ private:
+  void* memory;
+
+  std::size_t capacity = 0;
+  std::size_t size = 0;
+};
+
+void example_20_object_pool() {
+  std::cout << "\n=== 20. Object Pool ===\n";
+
+  ObjectPool pool(3);
+
+  Resource* a = pool.create(1);
+  Resource* b = pool.create(2);
+
+  std::cout << "a = " << a << '\n';
+  std::cout << "b = " << b << '\n';
+
+  pool.destroy(a);
+  pool.destroy(b);
+
+  /*
+      This combines several concepts:
+
+      raw allocation
+          |
+          v
+      alignment
+          |
+          v
+      placement new
+          |
+          v
+      object lifetime
+          |
+          v
+      explicit destructor
+          |
+          v
+      raw memory release
+  */
 }
 
 //////////////////////////////////////////////////////////////
@@ -558,37 +1016,42 @@ void dangerous_patterns() {
 //////////////////////////////////////////////////////////////
 
 int run() {
-  std::cout << "\n--- Logger System ---\n";
+  example_01_stack_vs_heap();
 
-  Logger logger(4, "log.txt");
+  example_02_new_delete();
 
-  logger.log<TextLog>("hello world");
-  logger.log<TextLog>("another log");
+  // Intentionally leaks memory.
+  example_03_memory_leak();
 
-  logger.flush();
+  example_04_raii();
 
-  std::cout << "Log count: " << logger.count() << "\n";
+  example_05_smart_pointer_overview();
+  example_06_unique_ptr();
+  example_07_shared_ptr();
+  example_08_weak_ptr();
 
-  std::cout << "\n--- Memory Layout Insight ---\n";
-  std::cout << "sizeof(LogEntry): " << sizeof(LogEntry) << "\n";
-  std::cout << "sizeof(TextLog): " << sizeof(TextLog) << "\n";
+  // Intentionally demonstrates a shared_ptr cycle.
+  example_09_shared_ptr_cycle();
 
-  std::cout << "\n--- Alignment ---\n";
-  std::cout << "alignof(AlignedCounter): " << alignof(AlignedCounter) << "\n";
+  example_10_break_cycle_with_weak_ptr();
 
-  std::cout << "=== new[]/delte[] ===\n";
-  test_new_delete_internal();
+  example_11_custom_deleter();
 
-  std::cout << "=== RAII ===\n";
-  test_RAII();
+  example_12_allocator();
+  example_13_placement_new();
 
-  std::cout << "=== Smart Pointers ===\n";
-  test_smart_pointer();
+  example_14_alignment();
+  example_15_object_layout();
 
-  std::cout << "=== Allocator ===\n";
-  test_allocator();
+  // Demonstrates a dangling pointer, but does not dereference it.
+  example_16_dangling_pointer();
 
-  std::cout << "\n--- End ---\n";
+  example_17_use_after_free();
+  example_18_double_free();
+
+  example_19_raii_vs_raw_pointer();
+
+  example_20_object_pool();
 
   return 0;
 }
