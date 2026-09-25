@@ -7,7 +7,7 @@
 namespace OOP {
 
 // ============================================================
-// 21. Classes & structs
+// Classes & structs
 // ============================================================
 //
 // class and struct are almost identical in C++.
@@ -46,8 +46,8 @@ struct Position {
   void print() const { std::cout << "Position: (" << x << ", " << y << ")\n"; }
 };
 
-void example_21() {
-  std::cout << "\n=== 21. Classes & structs ===\n";
+void example_classs_and_structs() {
+  std::cout << "\n=== Classes & structs ===\n";
 
   Player player("Alice", 10);
   player.print();
@@ -63,7 +63,7 @@ void example_21() {
 }
 
 // ============================================================
-// 22. Access specifiers
+// Access specifiers
 // ============================================================
 //
 // public:
@@ -111,8 +111,8 @@ class PremiumAccount : public BankAccount {
   // balance += 100;
 };
 
-void example_22() {
-  std::cout << "\n=== 22. Access specifiers ===\n";
+void example_access_specifiers() {
+  std::cout << "\n=== Access specifiers ===\n";
 
   PremiumAccount account(1000.0);
 
@@ -126,7 +126,7 @@ void example_22() {
 }
 
 // ============================================================
-// 23. Constructors / destructors
+// Constructors / destructors
 // ============================================================
 //
 // Constructor:
@@ -166,8 +166,8 @@ class Application {
   ~Application() { std::cout << "Application destroyed\n"; }
 };
 
-void example_23() {
-  std::cout << "\n=== 23. Constructors / destructors ===\n";
+void example_constructors_destructors() {
+  std::cout << "\n=== Constructors / destructors ===\n";
 
   {
     Application app;
@@ -178,7 +178,7 @@ void example_23() {
 }
 
 // ============================================================
-// 24. Copy constructor / copy assignment
+// Copy constructor / copy assignment
 // ============================================================
 //
 // Copy constructor:
@@ -224,8 +224,8 @@ class Widget {
   void print() const { std::cout << "Widget: " << name << '\n'; }
 };
 
-void example_24() {
-  std::cout << "\n=== 24. Copy constructor / copy assignment ===\n";
+void example_copy_constructor_assignment() {
+  std::cout << "\n=== Copy constructor / copy assignment ===\n";
 
   Widget a("Sword");
 
@@ -244,7 +244,7 @@ void example_24() {
 }
 
 // ============================================================
-// 25. Move constructor / move assignment
+// Move constructor / move assignment
 // ============================================================
 //
 // Moving transfers resources/state from an object instead of
@@ -329,8 +329,8 @@ class Buffer {
   size_t get_size() const { return size; }
 };
 
-void example_25() {
-  std::cout << "\n=== 25. Move constructor / move assignment ===\n";
+void example_move_constructor_assignment() {
+  std::cout << "\n=== Move constructor / move assignment ===\n";
 
   Buffer a(100);
 
@@ -351,7 +351,7 @@ void example_25() {
 }
 
 // ============================================================
-// 26. Rule of 3 / 5 / 0
+// Rule of 3 / 5 / 0
 // ============================================================
 //
 // Rule of 3:
@@ -481,8 +481,8 @@ class SafeBuffer {
   // std::vector handles its own resource management.
 };
 
-void example_26() {
-  std::cout << "\n=== 26. Rule of 3 / 5 / 0 ===\n";
+void example_rule_of_5() {
+  std::cout << "\n=== Rule of 3 / 5 / 0 ===\n";
 
   std::cout << "--- Rule of 5 ---\n";
 
@@ -504,7 +504,7 @@ void example_26() {
 }
 
 // ============================================================
-// 27. this pointer
+// this pointer
 // ============================================================
 //
 // Every non-static member function has access to:
@@ -542,8 +542,8 @@ class Counter {
   bool is_same_object(const Counter& other) const { return this == &other; }
 };
 
-void example_27() {
-  std::cout << "\n=== 27. this pointer ===\n";
+void example_this_pointer() {
+  std::cout << "\n=== this pointer ===\n";
 
   Counter a(0);
   Counter b(10);
@@ -558,7 +558,7 @@ void example_27() {
 }
 
 // ============================================================
-// 28. Static members
+// Static members
 // ============================================================
 //
 // A normal member belongs to each object.
@@ -587,8 +587,8 @@ class Connection {
 // Definition required for a non-inline static data member.
 int Connection::active_connections = 0;
 
-void example_28() {
-  std::cout << "\n=== 28. Static members ===\n";
+void example_static_members() {
+  std::cout << "\n=== Static members ===\n";
 
   std::cout << "Connections: " << Connection::get_active_count() << '\n';
 
@@ -607,7 +607,7 @@ void example_28() {
 }
 
 // ============================================================
-// 29. Friend functions / friend classes
+// Friend functions / friend classes
 // ============================================================
 //
 // A friend is NOT a member of the class.
@@ -644,8 +644,8 @@ std::ostream& operator<<(std::ostream& os, const Order& order) {
   return os;
 }
 
-void example_29() {
-  std::cout << "\n=== 29. Friend functions / classes ===\n";
+void example_friend_functions_classes() {
+  std::cout << "\n=== Friend functions / classes ===\n";
 
   Order order(42, 99.5);
 
@@ -653,7 +653,7 @@ void example_29() {
 }
 
 // ============================================================
-// 30. Operator overloading
+// Operator overloading
 // ============================================================
 //
 // Operators can be overloaded for user-defined types.
@@ -702,8 +702,8 @@ std::ostream& operator<<(std::ostream& os, const Money& money) {
   return os;
 }
 
-void example_30() {
-  std::cout << "\n=== 30. Operator overloading ===\n";
+void example_operator_overloading() {
+  std::cout << "\n=== Operator overloading ===\n";
 
   Money a(1000);  // $10
   Money b(250);   // $2.50
@@ -720,7 +720,7 @@ void example_30() {
 }
 
 // ============================================================
-// 31. Inheritance basics
+// Inheritance basics
 // ============================================================
 //
 // Inheritance expresses an "is-a" relationship.
@@ -769,8 +769,8 @@ class Weapon : public Item {
   }
 };
 
-void example_31() {
-  std::cout << "\n=== 31. Inheritance basics ===\n";
+void example_inheritance_basics() {
+  std::cout << "\n=== Inheritance basics ===\n";
 
   Weapon weapon(10, 50);
 
@@ -780,7 +780,7 @@ void example_31() {
 }
 
 // ============================================================
-// 32. Virtual functions & polymorphism
+// Virtual functions & polymorphism
 // ============================================================
 //
 // Polymorphism means we can use a base-class interface while
@@ -821,8 +821,8 @@ class Rectangle : public Shape {
 
 void draw_shape(const Shape& shape) { shape.draw(); }
 
-void example_32() {
-  std::cout << "\n=== 32. Virtual functions & polymorphism ===\n";
+void example_virtual_function_and_polymorphism() {
+  std::cout << "\n=== Virtual functions & polymorphism ===\n";
 
   Circle circle;
   Rectangle rectangle;
@@ -841,7 +841,7 @@ void example_32() {
 }
 
 // ============================================================
-// 33. Abstract classes / pure virtual functions
+// Abstract classes / pure virtual functions
 // ============================================================
 //
 // A class containing at least one pure virtual function is
@@ -875,8 +875,8 @@ class CryptoPayment : public Payment {
   }
 };
 
-void example_33() {
-  std::cout << "\n=== 33. Abstract classes ===\n";
+void example_abstract_classes() {
+  std::cout << "\n=== Abstract classes ===\n";
 
   // Payment payment(100);  // ERROR: abstract class
 
@@ -890,7 +890,7 @@ void example_33() {
 }
 
 // ============================================================
-// 34. Object slicing
+// Object slicing
 // ============================================================
 //
 // A derived object can be copied into a base object:
@@ -928,8 +928,8 @@ void take_by_value(Animal animal) { animal.speak(); }
 
 void take_by_reference(const Animal& animal) { animal.speak(); }
 
-void example_34() {
-  std::cout << "\n=== 34. Object slicing ===\n";
+void example_object_slicing() {
+  std::cout << "\n=== Object slicing ===\n";
 
   Dog dog;
 
@@ -948,7 +948,7 @@ void example_34() {
 }
 
 // ============================================================
-// 35. override / final
+// override / final
 // ============================================================
 //
 // override:
@@ -1007,8 +1007,8 @@ class TeslaEngine final : public ElectricEngine {
 // Without `override`, this typo would silently create
 // a new function instead of overriding the base function.
 
-void example_35() {
-  std::cout << "\n=== 35. override / final ===\n";
+void example_override_final() {
+  std::cout << "\n=== override / final ===\n";
 
   std::unique_ptr<Engine> engine = std::make_unique<ElectricEngine>();
 
@@ -1029,21 +1029,21 @@ void example_35() {
 // ============================================================
 
 void run() {
-  example_21();
-  example_22();
-  example_23();
-  example_24();
-  example_25();
-  example_26();
-  example_27();
-  example_28();
-  example_29();
-  example_30();
-  example_31();
-  example_32();
-  example_33();
-  example_34();
-  example_35();
+  example_classs_and_structs();
+  example_access_specifiers();
+  example_constructors_destructors();
+  example_copy_constructor_assignment();
+  example_move_constructor_assignment();
+  example_rule_of_5();
+  example_this_pointer();
+  example_static_members();
+  example_friend_functions_classes();
+  example_operator_overloading();
+  example_inheritance_basics();
+  example_virtual_function_and_polymorphism();
+  example_abstract_classes();
+  example_object_slicing();
+  example_override_final();
 }
 
 }  // namespace OOP
